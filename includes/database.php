@@ -39,7 +39,9 @@ function db(): PDO
             if ($isNew) {
                 require __DIR__ . '/schema.php';
             }
-        } catch (PDOException $e) {
+            require_once __DIR__ . '/migrations.php';
+            run_migrations($pdo);
+        } catch (Throwable $e) {
             error_log('RSH-LS DB-Verbindung fehlgeschlagen: ' . $e->getMessage());
             http_response_code(500);
             exit('Datenbankverbindung fehlgeschlagen. Bitte später erneut versuchen.');

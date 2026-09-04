@@ -249,6 +249,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <a class="tab <?= $tab === 'uebersicht' ? 'active' : '' ?>" href="<?= url('modules/auftraege/auftrag.php?id=' . (int)$order['id'] . '&tab=uebersicht') ?>">Übersicht</a>
     <a class="tab <?= $tab === 'technik' ? 'active' : '' ?>" href="<?= url('modules/auftraege/auftrag.php?id=' . (int)$order['id'] . '&tab=technik') ?>">Technik (<?= count($items) ?>)</a>
     <a class="tab <?= $tab === 'verlauf' ? 'active' : '' ?>" href="<?= url('modules/auftraege/auftrag.php?id=' . (int)$order['id'] . '&tab=verlauf') ?>">Verlauf</a>
+    <a class="tab" href="<?= url('modules/auftraege/pdf.php?id=' . (int)$order['id']) ?>" target="_blank" rel="noopener">Als PDF ↓</a>
     <?php if (has_permission('ausgabe_rueckgabe.edit')): ?>
     <a class="tab" href="<?= url('modules/ausgabe/ausgabe.php?order=' . e($order['order_number'])) ?>">Ausgabe →</a>
     <a class="tab" href="<?= url('modules/rueckgabe/rueckgabe.php?order=' . e($order['order_number'])) ?>">Rückgabe →</a>

@@ -49,9 +49,12 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="section-head">
     <h1>Aufträge</h1>
-    <?php if (has_permission('auftraege.edit')): ?>
-        <a href="<?= url('modules/auftraege/auftrag.php?id=new') ?>" class="btn btn-primary btn-sm">+ Neuer Auftrag</a>
-    <?php endif; ?>
+    <div class="btn-row">
+        <a href="<?= url('modules/auftraege/export.php?' . http_build_query(['q' => $q, 'status' => $status])) ?>" class="btn btn-ghost btn-sm">Excel-Export</a>
+        <?php if (has_permission('auftraege.edit')): ?>
+            <a href="<?= url('modules/auftraege/auftrag.php?id=new') ?>" class="btn btn-primary btn-sm">+ Neuer Auftrag</a>
+        <?php endif; ?>
+    </div>
 </div>
 
 <form method="get" class="card card-flat">

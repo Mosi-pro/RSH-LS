@@ -48,6 +48,8 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="btn-row">
         <a href="<?= url('modules/lager/lagerorte.php') ?>" class="btn btn-ghost btn-sm">Lagerorte</a>
         <a href="<?= url('modules/lager/kategorien.php') ?>" class="btn btn-ghost btn-sm">Kategorien</a>
+        <a href="<?= url('modules/lager/etiketten.php?' . http_build_query(['q' => $q, 'status' => $status, 'category' => $category])) ?>" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Etiketten drucken</a>
+        <a href="<?= url('modules/lager/export.php?' . http_build_query(['q' => $q, 'status' => $status, 'category' => $category])) ?>" class="btn btn-ghost btn-sm">Excel-Export</a>
         <?php if (has_permission('lager.edit')): ?>
             <a href="<?= url('modules/lager/import.php') ?>" class="btn btn-ghost btn-sm">Aus Excel importieren</a>
             <a href="<?= url('modules/lager/geraet.php?id=new') ?>" class="btn btn-primary btn-sm">+ Neues Gerät</a>

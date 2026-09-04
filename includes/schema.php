@@ -209,3 +209,8 @@ foreach ($statements as $sql) {
 }
 $pdo->commit();
 $pdo->exec('PRAGMA foreign_keys = ON');
+
+// Basis-Schema-Version. Alles Weitere läuft über includes/migrations.php,
+// damit bereits im Einsatz befindliche Datenbanken beim Update nicht neu
+// aufgesetzt werden müssen.
+$pdo->exec('PRAGMA user_version = 1');

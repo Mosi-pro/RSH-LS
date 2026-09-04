@@ -34,10 +34,27 @@ $recentOrders = $stmt->fetchAll();
 $hour = (int)date('H');
 $greeting = $hour < 11 ? 'Guten Morgen' : ($hour < 18 ? 'Guten Tag' : 'Guten Abend');
 
+$canSeeWarnings = has_permission('lager.edit') || has_permission('auftraege.edit');
+$warnings = $canSeeWarnings ? get_warnings() : [];
+
 $page_title = 'Dashboard';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <h1><?= e($greeting) ?>, <?= e($user['name']) ?></h1>
+
+<?php if ($warnings): ?>
+<div class="card">
+    <h3 class="mt-0">⚠ Warnungen (<?= count($warnings) ?>)</h3>
+    <ul class="timeline">
+        <?php foreach ($warnings as $w): ?>
+            <li>
+                <span class="t-time"><span class="badge badge-<?= $w['level'] ?>">&nbsp;</span></span>
+                <span class="t-body"><a href="<?= url($w['url']) ?>"><?= e($w['message']) ?></a></span>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
 
 <div class="stat-grid">
     <div class="stat-card">
@@ -92,6 +109,9 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if (has_permission('auftraege.edit')): ?><a class="btn" href="<?= url('modules/auftraege/auftrag.php?id=new') ?>">Neuer Auftrag</a><?php endif; ?>
     <?php if (has_permission('veranstaltungen.view')): ?><a class="btn" href="<?= url('modules/veranstaltungen/index.php') ?>">Veranstaltungen</a><?php endif; ?>
     <?php if (has_permission('ausgabe_rueckgabe.edit')): ?><a class="btn" href="<?= url('terminal/index.php') ?>">Ausgabe / Rückgabe</a><?php endif; ?>
+    <?php if (has_permission('inventur.view')): ?><a class="btn" href="<?= url('modules/inventur/index.php') ?>">Inventur</a><?php endif; ?>
+    <?php if (has_permission('defekte.report')): ?><a class="btn" href="<?= url('modules/defekte/index.php') ?>">Defekte & Wartung</a><?php endif; ?>
+    <?php if (has_permission('reports.view')): ?><a class="btn" href="<?= url('modules/reports/index.php') ?>">Auswertungen</a><?php endif; ?>
 </div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

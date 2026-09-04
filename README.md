@@ -7,11 +7,12 @@ Datenbankserver, keine Zugangsdaten, kein manueller SQL-Import nötig.
 
 Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
 
-## Umfang dieser Version (MVP)
+## Umfang
 
+**Kernmodule (MVP):**
 1. Login (Mitarbeiter-ID, ohne Passwort)
-2. Dashboard
-3. Lager / Geräte
+2. Dashboard (inkl. Live-Warnungen)
+3. Lager / Geräte (inkl. Excel-Import)
 4. Kategorien & Lagerorte
 5. Aufträge (inkl. Technik-Zusammenstellung, Reservierung, Status)
 6. Veranstaltungen
@@ -21,9 +22,17 @@ Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
 10. Historie / Audit-Log
 11. Globale Suche
 
-Bewusst **nicht** enthalten (spätere Ausbaustufen): QR-/Barcode-Erzeugung (Scanner-Eingabe
-per Tastatur-Emulation wird bereits unterstützt), Inventur, Defekt-/Wartungsverwaltung,
-Reports/Statistiken, PDF/Excel-Export, Benachrichtigungen.
+**Erweiterungen:**
+12. QR-Codes (Geräte-Scan-Landingpage, druckbare Einzel-/Stapel-Etiketten)
+13. Inventur (Soll/Ist-Abgleich per Scan-Eingabe, Abweichungsprotokoll)
+14. Defekte & Wartung (Defekt melden, Bearbeitungsstatus, Wartungsfälligkeiten)
+15. Auswertungen (Auslastung, meistgenutzte Geräte, häufigste Defekte, Aufträge/Monat, Inventurabweichungen)
+16. PDF-Export (Auftragszettel/Packliste) & Excel-Export (Lager, Aufträge, Historie)
+17. Benachrichtigungen (live berechnete Warnungen: überfällige Rückgaben, unvollständige
+    Rückgaben, fällige Wartungen, dringende Defekte – keine eigene Tabelle nötig)
+
+Noch nicht enthalten: Barcode-*Erzeugung* (Scanner-*Eingabe* per Tastatur-Emulation wird
+bereits unterstützt), E-Mail-/Telegram-Benachrichtigungen, Kundenportal, Mehrsprachigkeit.
 
 ## Setup
 
@@ -49,8 +58,11 @@ Da alle Daten in einer einzigen Datei liegen, ist ein Backup denkbar einfach:
 
 ```
 /public      Login, Dashboard, Suche
-/includes    Bootstrap, DB (SQLite), Schema, Auth, Rechte, Helper, Layout
-/modules     Lager, Aufträge, Veranstaltungen, Ausgabe, Rückgabe, Mitarbeiter, Historie
+/includes    Bootstrap, DB (SQLite), Schema/Migrationen, Auth, Rechte, Helper, Layout,
+             XLSX-Reader/-Writer, PDF-Writer
+/modules     Lager (inkl. Import/Export/QR/Etiketten), Aufträge (inkl. PDF/Excel),
+             Veranstaltungen, Ausgabe, Rückgabe, Mitarbeiter, Historie (inkl. Excel),
+             Inventur, Defekte & Wartung, Reports
 /terminal    Große Touch-Oberfläche für das Lager-Tablet
 /api         JSON-Endpunkte (Suche)
 /admin       Zentrale Verwaltungsseite (nur Technikleitung)
@@ -58,6 +70,15 @@ Da alle Daten in einer einzigen Datei liegen, ist ein Backup denkbar einfach:
 /data        SQLite-Datenbankdatei (wird automatisch angelegt)
 /uploads     Zukünftige Datei-Uploads
 ```
+
+## Schema-Migrationen
+
+Neue Datenbankfelder/-tabellen werden über `includes/migrations.php` ausgerollt
+(Versionsnummer in der SQLite-Datei selbst, `PRAGMA user_version`). Ein Update der
+Projektdateien reicht aus – beim nächsten Aufruf wird die bestehende
+`data/rsh-ls.sqlite` automatisch und ohne Datenverlust auf den neuesten Stand
+gebracht. Neue Migrationen werden in `includes/migrations.php` als neuer Eintrag mit
+der nächsthöheren Versionsnummer ergänzt; bestehende Einträge nie nachträglich ändern.
 
 ## Sicherheitskonzept
 
@@ -78,11 +99,25 @@ Da alle Daten in einer einzigen Datei liegen, ist ein Backup denkbar einfach:
 | Rolle                  | Rechte                          |
 |-------------------------|----------------------------------|
 | Technikleitung          | alles                            |
-| Lagerleitung             | Lager + Aufträge                 |
-| Mitarbeiter              | eigene Buchungen                 |
-| Veranstaltungsleitung   | Veranstaltungen + Aufträge       |
-| Lager-Terminal            | Ausgabe / Rückgabe               |
+| Lagerleitung             | Lager + Aufträge + Inventur + Defekte verwalten + Auswertungen |
+| Mitarbeiter              | eigene Buchungen + Defekte melden |
+| Veranstaltungsleitung   | Veranstaltungen + Aufträge + Defekte melden |
+| Lager-Terminal            | Ausgabe / Rückgabe + Defekte melden |
 | Gast                      | nur freigegebene Informationen  |
+
+**Gerätebearbeitung (`lager.edit`) ist bewusst nur der Technikleitung und der
+Lagerleitung vorbehalten** – alle anderen Rollen sehen das Lager nur lesend.
+Defekte *melden* darf breit jede Rolle mit Lagerzugriff; Defekte *bearbeiten/
+beheben* sowie Inventur und Auswertungen bleiben ebenfalls Technikleitung +
+Lagerleitung vorbehalten.
+
+## QR-Codes
+
+Die QR-Code-Erzeugung läuft clientseitig über die kleine, weit verbreitete
+Bibliothek `qrcodejs` (per `<script>`-Tag von cdnjs.cloudflare.com geladen) –
+das Gerät des Betrachters (nicht der Server) braucht dafür beim Aufrufen einer
+Geräteseite/eines Etiketts kurz Internetzugriff. Serverseitig ist dafür nichts
+weiter nötig.
 
 ## Barcode-/QR-Scanner
 

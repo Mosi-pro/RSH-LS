@@ -47,8 +47,17 @@ function nav_active(string $needle, string $currentPath): string
             <?php if (has_permission('ausgabe_rueckgabe.edit')): ?>
             <a href="<?= url('terminal/index.php') ?>" class="nav-item<?= nav_active('/ausgabe/', $currentPath) . nav_active('/rueckgabe/', $currentPath) ?>"><span class="ic">⇄</span> Ausgabe / Rückgabe</a>
             <?php endif; ?>
+            <?php if (has_permission('inventur.view')): ?>
+            <a href="<?= url('modules/inventur/index.php') ?>" class="nav-item<?= nav_active('/inventur/', $currentPath) ?>"><span class="ic">▦</span> Inventur</a>
+            <?php endif; ?>
+            <?php if (has_permission('defekte.report')): ?>
+            <a href="<?= url('modules/defekte/index.php') ?>" class="nav-item<?= nav_active('/defekte/', $currentPath) ?>"><span class="ic">⚠</span> Defekte & Wartung</a>
+            <?php endif; ?>
             <?php if (has_permission('mitarbeiter.view')): ?>
             <a href="<?= url('modules/mitarbeiter/index.php') ?>" class="nav-item<?= nav_active('/mitarbeiter/', $currentPath) ?>"><span class="ic">♙</span> Mitarbeiter</a>
+            <?php endif; ?>
+            <?php if (has_permission('reports.view')): ?>
+            <a href="<?= url('modules/reports/index.php') ?>" class="nav-item<?= nav_active('/reports/', $currentPath) ?>"><span class="ic">📊</span> Auswertungen</a>
             <?php endif; ?>
             <?php if (has_permission('historie.view') || is_admin()): ?>
             <a href="<?= url('modules/historie/index.php') ?>" class="nav-item<?= nav_active('/historie/', $currentPath) ?>"><span class="ic">▥</span> Historie</a>

@@ -47,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'quantity'        => max(1, (int)input('quantity', '1')),
         'barcode'         => input('barcode'),
         'notes'           => input('notes'),
+        'last_maintenance_date' => input('last_maintenance_date') ?: null,
+        'next_maintenance_date' => input('next_maintenance_date') ?: null,
     ];
 
     if ($data['name'] === '') {
@@ -57,14 +59,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare(
                 'INSERT INTO devices (inventory_number, name, category_id, manufacturer, model, serial_number,
                     location_id, condition_note, status, purchase_date, purchase_price, description, accessories,
-                    is_bulk, quantity, barcode, notes)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                    is_bulk, quantity, barcode, notes, last_maintenance_date, next_maintenance_date)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $invNumber, $data['name'], $data['category_id'], $data['manufacturer'], $data['model'],
                 $data['serial_number'], $data['location_id'], $data['condition_note'], $data['status'],
                 $data['purchase_date'], $data['purchase_price'], $data['description'], $data['accessories'],
                 $data['is_bulk'], $data['quantity'], $data['barcode'], $data['notes'],
+                $data['last_maintenance_date'], $data['next_maintenance_date'],
             ]);
             $newId = (int)$pdo->lastInsertId();
             log_activity('Gerät angelegt', 'device', $newId, $invNumber . ' ' . $data['name']);
@@ -74,13 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare(
                 'UPDATE devices SET name=?, category_id=?, manufacturer=?, model=?, serial_number=?, location_id=?,
                     condition_note=?, status=?, purchase_date=?, purchase_price=?, description=?, accessories=?,
-                    is_bulk=?, quantity=?, barcode=?, notes=? WHERE id=?'
+                    is_bulk=?, quantity=?, barcode=?, notes=?, last_maintenance_date=?, next_maintenance_date=?
+                 WHERE id=?'
             );
             $stmt->execute([
                 $data['name'], $data['category_id'], $data['manufacturer'], $data['model'], $data['serial_number'],
                 $data['location_id'], $data['condition_note'], $data['status'], $data['purchase_date'],
                 $data['purchase_price'], $data['description'], $data['accessories'], $data['is_bulk'],
-                $data['quantity'], $data['barcode'], $data['notes'], (int)$device['id'],
+                $data['quantity'], $data['barcode'], $data['notes'],
+                $data['last_maintenance_date'], $data['next_maintenance_date'], (int)$device['id'],
             ]);
             log_activity('Gerät bearbeitet', 'device', (int)$device['id'], $device['inventory_number'] . ' ' . $data['name']);
             flash('success', 'Änderungen gespeichert.');
@@ -112,7 +117,12 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="section-head">
     <h1><?= $isNew ? 'Neues Gerät' : e($device['inventory_number']) . ' – ' . e($device['name']) ?></h1>
-    <?php if (!$isNew): ?><span class="badge badge-<?= status_class($device['status']) ?>"><?= e(device_status_label($device['status'])) ?></span><?php endif; ?>
+    <div class="btn-row" style="align-items:center;">
+        <?php if (!$isNew): ?><span class="badge badge-<?= status_class($device['status']) ?>"><?= e(device_status_label($device['status'])) ?></span><?php endif; ?>
+        <?php if (!$isNew && has_permission('defekte.report')): ?>
+            <a href="<?= url('modules/defekte/melden.php?device_id=' . (int)$device['id']) ?>" class="btn btn-danger btn-sm">Defekt melden</a>
+        <?php endif; ?>
+    </div>
 </div>
 
 <?php if (!$isNew && $currentOrder): ?>
@@ -197,6 +207,14 @@ require_once __DIR__ . '/../../includes/header.php';
             <label>Menge / Bestand</label>
             <input type="number" min="1" name="quantity" value="<?= e($device['quantity'] ?? '1') ?>">
         </div>
+        <div class="field">
+            <label>Letzte Wartung</label>
+            <input type="date" name="last_maintenance_date" value="<?= e($device['last_maintenance_date'] ?? '') ?>">
+        </div>
+        <div class="field">
+            <label>Nächste Wartung</label>
+            <input type="date" name="next_maintenance_date" value="<?= e($device['next_maintenance_date'] ?? '') ?>">
+        </div>
     </div>
 
     <div class="field">
@@ -224,6 +242,21 @@ require_once __DIR__ . '/../../includes/header.php';
 </form>
 
 <?php if (!$isNew): ?>
+<div class="card">
+    <h3>QR-Code</h3>
+    <div id="qrcode"></div>
+    <p class="small muted">Scannen öffnet die Schnellansicht mit Status, Lagerort und Schnellaktionen.</p>
+    <a href="<?= url('modules/lager/etikett.php?id=' . (int)$device['id']) ?>" class="btn btn-sm" target="_blank" rel="noopener">Etikett drucken</a>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+new QRCode(document.getElementById("qrcode"), {
+    text: <?= json_encode(full_url('modules/lager/scan.php?code=' . urlencode($device['inventory_number']))) ?>,
+    width: 160,
+    height: 160
+});
+</script>
+
 <div class="section-head"><h2>Gerätehistorie</h2></div>
 <?php if (!$history): ?>
     <p class="muted">Noch keine Einträge.</p>

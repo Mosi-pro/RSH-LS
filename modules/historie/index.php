@@ -39,7 +39,10 @@ $entityTypes = ['device' => 'Gerät', 'order' => 'Auftrag', 'event' => 'Veransta
 $page_title = 'Historie';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
-<div class="section-head"><h1>Historie / Audit-Log</h1></div>
+<div class="section-head">
+    <h1>Historie / Audit-Log</h1>
+    <a href="<?= url('modules/historie/export.php?' . http_build_query(['q' => $q, 'type' => $entityType])) ?>" class="btn btn-ghost btn-sm">Excel-Export</a>
+</div>
 
 <form method="get" class="card card-flat">
     <div class="form-grid">

@@ -33,5 +33,14 @@ require_once __DIR__ . '/../includes/header.php';
     <a class="stat-card" href="<?= url('modules/historie/index.php') ?>">
         <div class="stat-label">Historie / Audit-Log</div>
     </a>
+    <a class="stat-card" href="<?= url('modules/inventur/index.php') ?>">
+        <div class="stat-label">Inventur</div>
+    </a>
+    <a class="stat-card" href="<?= url('modules/defekte/index.php') ?>">
+        <div class="stat-label">Defekte & Wartung</div>
+    </a>
+    <a class="stat-card" href="<?= url('modules/reports/index.php') ?>">
+        <div class="stat-label">Auswertungen</div>
+    </a>
 </div>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

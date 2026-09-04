@@ -19,6 +19,14 @@ function url(string $path): string
     return BASE_URL . '/' . ltrim($path, '/');
 }
 
+/** Voll qualifizierte URL (mit Schema + Host) – nötig für QR-Codes, die extern gescannt werden. */
+function full_url(string $path): string
+{
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . url($path);
+}
+
 /** Ziel nach dem Login: Lager-Terminal-Rolle kommt immer direkt aufs Terminal. */
 function home_path(): string
 {
@@ -93,6 +101,85 @@ function generate_order_number(): string
         $next = (int)$m[1] + 1;
     }
     return $year . '-' . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
+}
+
+/**
+ * Live berechnete Warnungen fürs Dashboard (keine eigene Tabelle nötig):
+ * überfällige Rückgaben, unvollständige Rückgaben, fällige Wartungen,
+ * dringende offene Defekte.
+ * @return array<int, array{level:string, message:string, url:string}>
+ */
+function get_warnings(): array
+{
+    $pdo = db();
+    $today = date('Y-m-d');
+    $warnings = [];
+
+    $stmt = $pdo->prepare(
+        "SELECT id, order_number, title, teardown_date FROM orders
+         WHERE teardown_date IS NOT NULL AND teardown_date != '' AND teardown_date < ?
+           AND status NOT IN ('abgeschlossen','storniert')
+         ORDER BY teardown_date"
+    );
+    $stmt->execute([$today]);
+    foreach ($stmt as $o) {
+        $warnings[] = [
+            'level'   => 'danger',
+            'message' => 'Rückgabe überfällig: Auftrag #' . $o['order_number'] . ' „' . $o['title']
+                . '“ – Abbau war am ' . format_date($o['teardown_date']),
+            'url'     => 'modules/auftraege/auftrag.php?id=' . $o['id'],
+        ];
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT od.device_id, od.missing_notes, d.inventory_number, d.name AS device_name, o.order_number
+         FROM order_devices od
+         JOIN devices d ON d.id = od.device_id
+         JOIN orders o ON o.id = od.order_id
+         WHERE od.status = 'zurueckgegeben' AND od.complete = 0 AND od.returned_at >= ?
+         ORDER BY od.returned_at DESC"
+    );
+    $stmt->execute([date('Y-m-d H:i:s', strtotime('-14 days'))]);
+    foreach ($stmt as $od) {
+        $warnings[] = [
+            'level'   => 'warn',
+            'message' => 'Rückgabe unvollständig: ' . $od['inventory_number'] . ' (' . $od['device_name']
+                . ') aus Auftrag #' . $od['order_number'] . ($od['missing_notes'] ? ' – fehlt: ' . $od['missing_notes'] : ''),
+            'url'     => 'modules/lager/geraet.php?id=' . $od['device_id'],
+        ];
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT id, inventory_number, name, next_maintenance_date FROM devices
+         WHERE next_maintenance_date IS NOT NULL AND next_maintenance_date != '' AND next_maintenance_date <= ?
+           AND status != 'aussortiert'
+         ORDER BY next_maintenance_date"
+    );
+    $stmt->execute([$today]);
+    foreach ($stmt as $d) {
+        $warnings[] = [
+            'level'   => 'warn',
+            'message' => 'Wartung fällig: ' . $d['inventory_number'] . ' (' . $d['name']
+                . ') seit ' . format_date($d['next_maintenance_date']),
+            'url'     => 'modules/lager/geraet.php?id=' . $d['id'],
+        ];
+    }
+
+    $stmt = $pdo->query(
+        "SELECT f.id, d.inventory_number, d.name AS device_name
+         FROM defects f JOIN devices d ON d.id = f.device_id
+         WHERE f.status != 'behoben' AND f.priority = 'dringend'
+         ORDER BY f.created_at"
+    );
+    foreach ($stmt as $f) {
+        $warnings[] = [
+            'level'   => 'danger',
+            'message' => 'Dringender Defekt: ' . $f['inventory_number'] . ' (' . $f['device_name'] . ')',
+            'url'     => 'modules/defekte/defekt.php?id=' . $f['id'],
+        ];
+    }
+
+    return $warnings;
 }
 
 /** Aktion im Audit-Log protokollieren */
