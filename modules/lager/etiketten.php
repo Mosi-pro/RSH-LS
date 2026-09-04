@@ -36,6 +36,15 @@ $sql .= ' ORDER BY d.inventory_number ASC LIMIT 500';
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $devices = $stmt->fetchAll();
+
+// Bei Mengenartikeln bekommt jedes physische Stück ein eigenes Etikett.
+$labels = [];
+foreach ($devices as $d) {
+    $copies = max(1, (int)$d['quantity']);
+    for ($n = 1; $n <= $copies; $n++) {
+        $labels[] = ['inventory_number' => $d['inventory_number'], 'name' => $d['name'], 'copy' => $n, 'copies' => $copies];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -54,6 +63,7 @@ $devices = $stmt->fetchAll();
     .label .info { min-width: 0; }
     .label .inv { font-weight: 700; font-size: 14px; }
     .label .name { font-size: 11px; line-height: 1.3; word-break: break-word; }
+    .label .copy { font-size: 9px; color: #666; }
     @media print {
         .toolbar { display: none; }
         body { padding: 0; }
@@ -63,26 +73,27 @@ $devices = $stmt->fetchAll();
 <body>
 <div class="toolbar">
     <button onclick="window.print()">Alle drucken</button>
-    <span><?= count($devices) ?> Etiketten</span>
+    <span><?= count($labels) ?> Etiketten (<?= count($devices) ?> Geräte)</span>
 </div>
 <div class="grid">
-    <?php foreach ($devices as $i => $d): ?>
+    <?php foreach ($labels as $i => $l): ?>
         <div class="label">
             <div class="qr" id="qr<?= $i ?>"></div>
             <div class="info">
-                <div class="inv"><?= e($d['inventory_number']) ?></div>
-                <div class="name"><?= e($d['name']) ?></div>
+                <div class="inv"><?= e($l['inventory_number']) ?></div>
+                <div class="name"><?= e($l['name']) ?></div>
+                <?php if ($l['copies'] > 1): ?><div class="copy">Stück <?= $l['copy'] ?> / <?= $l['copies'] ?></div><?php endif; ?>
             </div>
         </div>
     <?php endforeach; ?>
 </div>
 <script>
-var devices = <?= json_encode(array_map(function ($d) {
-    return ['inv' => $d['inventory_number']];
-}, $devices)) ?>;
+var labels = <?= json_encode(array_map(function ($l) {
+    return ['inv' => $l['inventory_number']];
+}, $labels)) ?>;
 var base = <?= json_encode(full_url('modules/lager/scan.php?code=')) ?>;
-devices.forEach(function (d, i) {
-    new QRCode(document.getElementById('qr' + i), { text: base + encodeURIComponent(d.inv), width: 60, height: 60 });
+labels.forEach(function (l, i) {
+    new QRCode(document.getElementById('qr' + i), { text: base + encodeURIComponent(l.inv), width: 60, height: 60 });
 });
 </script>
 </body>

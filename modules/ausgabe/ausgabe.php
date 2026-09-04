@@ -38,6 +38,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('modules/ausgabe/ausgabe.php?order=' . urlencode($orderNumber) . ($terminal ? '&terminal=1' : ''));
 
+    } elseif ($action === 'scan_confirm') {
+        $code = trim(input('code'));
+        $devStmt = $pdo->prepare('SELECT id, inventory_number, name FROM devices WHERE inventory_number = ?');
+        $devStmt->execute([$code]);
+        $dev = $devStmt->fetch();
+
+        if (!$dev) {
+            flash('error', '„' . $code . '“ wurde nicht gefunden.');
+        } else {
+            $stmt = $pdo->prepare('SELECT * FROM order_devices WHERE order_id = ? AND device_id = ?');
+            $stmt->execute([(int)$order['id'], $dev['id']]);
+            $od = $stmt->fetch();
+
+            if (!$od) {
+                flash('error', $dev['inventory_number'] . ' gehört nicht zu diesem Auftrag.');
+            } elseif ($od['status'] === 'ausgegeben') {
+                flash('info', $dev['inventory_number'] . ' ist bereits bestätigt.');
+            } else {
+                $pdo->prepare('UPDATE order_devices SET status = "ausgegeben", checked_out_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([$od['id']]);
+                $pdo->prepare('UPDATE devices SET status = "ausgegeben" WHERE id = ?')->execute([$dev['id']]);
+                log_activity('Gerät ausgegeben (Scan)', 'order', (int)$order['id'], $dev['inventory_number'] . ' ' . $dev['name']);
+                flash('success', $dev['inventory_number'] . ' – ' . $dev['name'] . ' bestätigt.');
+            }
+        }
+        redirect('modules/ausgabe/ausgabe.php?order=' . urlencode($orderNumber) . ($terminal ? '&terminal=1' : ''));
+
     } elseif ($action === 'undo_item') {
         $deviceId = (int)input('device_id');
         $stmt = $pdo->prepare('SELECT * FROM order_devices WHERE order_id = ? AND device_id = ?');
@@ -111,6 +137,18 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="progress-bar"><div class="progress-bar-fill" style="width:<?= $progress ?>%"></div></div>
 <p class="small muted"><?= $done ?> / <?= $total ?> Positionen bestätigt</p>
+
+<?php if ($done < $total): ?>
+<form method="post" class="card card-flat">
+    <?= csrf_field() ?>
+    <input type="hidden" name="form_action" value="scan_confirm">
+    <div class="field">
+        <label>Gerät scannen / Inventarnummer eingeben</label>
+        <input type="text" name="code" placeholder="RSH-0042" data-autofocus data-scan-target>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Bestätigen</button>
+</form>
+<?php endif; ?>
 
 <?php foreach ($orderDevices as $od): ?>
     <div class="device-check <?= $od['status'] === 'ausgegeben' ? 'confirmed' : '' ?>">

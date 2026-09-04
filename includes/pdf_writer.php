@@ -2,8 +2,10 @@
 /**
  * RSH-LS – Minimaler PDF-Writer (ohne externe Bibliotheken)
  *
- * Erzeugt einfache, mehrseitige Text-PDFs (Auftragszettel/Packlisten)
- * direkt aus PHP – nur Standard-Helvetica, keine Bilder/Grafiken nötig.
+ * Erzeugt mehrseitige PDFs (Auftragszettel/Packlisten) direkt aus PHP –
+ * mit dunklem Kopfband, Trennlinien, echten Checkbox-Kästchen und
+ * Fußzeile mit Seitenzahl. Nur Standard-Helvetica, keine Bilder/externen
+ * Ressourcen nötig.
  */
 if (!defined('RSH_APP')) {
     http_response_code(403);
@@ -12,17 +14,61 @@ if (!defined('RSH_APP')) {
 
 class SimplePdf
 {
-    /** @var array<int, array{text:string,size:int,bold:bool,gapBefore:float}> */
+    /** @var array<int, array{text:string,size:int,bold:bool,gapBefore:float,checkbox:bool,rule:bool,color:array}> */
     private array $lines = [];
+    private string $headerTitle = '';
+    private string $headerSubtitle = '';
+    private string $footerText = '';
 
-    public function addLine(string $text, int $size = 11, bool $bold = false, float $gapBefore = 2): void
+    public function setHeader(string $title, string $subtitle = ''): void
     {
-        $this->lines[] = ['text' => $text, 'size' => $size, 'bold' => $bold, 'gapBefore' => $gapBefore];
+        $this->headerTitle = $title;
+        $this->headerSubtitle = $subtitle;
+    }
+
+    public function setFooter(string $text): void
+    {
+        $this->footerText = $text;
+    }
+
+    /**
+     * @param array{color?:array{0:float,1:float,2:float}, checkbox?:bool} $opts
+     */
+    public function addLine(string $text, int $size = 11, bool $bold = false, float $gapBefore = 2, array $opts = []): void
+    {
+        $this->lines[] = [
+            'text'      => $text,
+            'size'      => $size,
+            'bold'      => $bold,
+            'gapBefore' => $gapBefore,
+            'checkbox'  => $opts['checkbox'] ?? false,
+            'rule'      => false,
+            'color'     => $opts['color'] ?? [0.09, 0.10, 0.13],
+        ];
     }
 
     public function addSpacer(float $height = 8): void
     {
-        $this->lines[] = ['text' => '', 'size' => 0, 'bold' => false, 'gapBefore' => $height];
+        $this->lines[] = ['text' => '', 'size' => 0, 'bold' => false, 'gapBefore' => $height, 'checkbox' => false, 'rule' => false, 'color' => [0, 0, 0]];
+    }
+
+    /** Zweifarbige "Label: Wert"-Zeile (gedämpftes Label + dunkler Wert), wie auf einem Formular. */
+    public function addKeyValue(string $label, string $value, float $gapBefore = 4): void
+    {
+        $this->lines[] = [
+            'text' => '', 'size' => 0, 'bold' => false, 'gapBefore' => $gapBefore, 'checkbox' => false, 'rule' => false, 'color' => [0, 0, 0],
+            'runs' => [
+                ['text' => mb_strtoupper($label), 'size' => 8, 'bold' => false, 'color' => [0.5, 0.52, 0.57], 'dx' => 0],
+                ['text' => $value !== '' ? $value : '–', 'size' => 10, 'bold' => false, 'color' => [0.09, 0.10, 0.13], 'dx' => 115],
+            ],
+            'lineHeight' => 15,
+        ];
+    }
+
+    /** Dünne horizontale Trennlinie über die volle Breite. */
+    public function addRule(float $gapBefore = 8): void
+    {
+        $this->lines[] = ['text' => '', 'size' => 0, 'bold' => false, 'gapBefore' => $gapBefore, 'checkbox' => false, 'rule' => true, 'color' => [0, 0, 0]];
     }
 
     private function pdfEscape(string $s): string
@@ -39,8 +85,10 @@ class SimplePdf
         $pageWidth = 595.28;
         $pageHeight = 841.89;
         $marginX = 50;
-        $marginTop = 792;
-        $marginBottom = 50;
+        $headerHeight = 66;
+        $footerReserve = 45;
+        $marginTop = $pageHeight - $headerHeight - 26;
+        $marginBottom = $footerReserve;
 
         $pages = [];
         $page = [];
@@ -48,6 +96,33 @@ class SimplePdf
 
         foreach ($this->lines as $line) {
             $y -= $line['gapBefore'];
+
+            if ($line['rule']) {
+                if ($y < $marginBottom) {
+                    $pages[] = $page;
+                    $page = [];
+                    $y = $marginTop;
+                }
+                $page[] = ['type' => 'rule', 'x1' => $marginX, 'x2' => $pageWidth - $marginX, 'y' => $y];
+                $y -= 2;
+                continue;
+            }
+
+            if (isset($line['runs'])) {
+                if ($y < $marginBottom) {
+                    $pages[] = $page;
+                    $page = [];
+                    $y = $marginTop;
+                }
+                $runs = [];
+                foreach ($line['runs'] as $r) {
+                    $runs[] = ['x' => $marginX + $r['dx'], 'y' => $y, 'text' => $r['text'], 'size' => $r['size'], 'bold' => $r['bold'], 'color' => $r['color']];
+                }
+                $page[] = ['type' => 'multitext', 'runs' => $runs];
+                $y -= $line['lineHeight'];
+                continue;
+            }
+
             if ($line['text'] === '') {
                 continue;
             }
@@ -56,17 +131,30 @@ class SimplePdf
                 $page = [];
                 $y = $marginTop;
             }
-            $page[] = ['x' => $marginX, 'y' => $y, 'text' => $line['text'], 'size' => $line['size'], 'bold' => $line['bold']];
+
+            $indent = $line['checkbox'] ? 16 : 0;
+            $entry = [
+                'type' => 'text', 'x' => $marginX + $indent, 'y' => $y,
+                'text' => $line['text'], 'size' => $line['size'], 'bold' => $line['bold'], 'color' => $line['color'],
+            ];
+            if ($line['checkbox']) {
+                $entry['checkbox'] = true;
+                $entry['checkboxX'] = $marginX;
+                $entry['checkboxY'] = $y - 1;
+            }
+            $page[] = $entry;
             $y -= $line['size'] * 1.35;
         }
         $pages[] = $page;
 
-        return $this->buildPdf($pages, $pageWidth, $pageHeight);
+        return $this->buildPdf($pages, $pageWidth, $pageHeight, $marginX, $headerHeight);
     }
 
-    /** @param array<int, array<int, array{x:float,y:float,text:string,size:int,bold:bool}>> $pages */
-    private function buildPdf(array $pages, float $w, float $h): string
+    /** @param array<int, array<int, array<string,mixed>>> $pages */
+    private function buildPdf(array $pages, float $w, float $h, float $marginX, float $headerHeight): string
     {
+        $totalPages = count($pages);
+
         $objects = [];
         $objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
         $objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
@@ -74,21 +162,77 @@ class SimplePdf
 
         $nextObjNum = 5;
         $pageObjNums = [];
+        $pageIndex = 0;
 
-        foreach ($pages as $pageLines) {
+        foreach ($pages as $pageEntries) {
+            $pageIndex++;
             $pageNum = $nextObjNum++;
             $contentNum = $nextObjNum++;
             $pageObjNums[] = $pageNum;
 
-            $stream = "BT\n";
-            foreach ($pageLines as $l) {
-                $font = $l['bold'] ? '/F2' : '/F1';
-                $stream .= sprintf("%s %d Tf\n", $font, $l['size']);
-                $stream .= sprintf("1 0 0 1 %.2F %.2F Tm\n", $l['x'], $l['y']);
-                $stream .= '(' . $this->pdfEscape($l['text']) . ") Tj\n";
-            }
-            $stream .= "ET";
+            // -- Grafik: Kopfband, Häkchen-Kästchen, Trennlinien, Fußzeilenlinie --
+            $graphics = sprintf("%.3F %.3F %.3F rg\n", 0.106, 0.118, 0.141);
+            $graphics .= sprintf("0 %.2F %.2F %.2F re f\n", $h - $headerHeight, $w, $headerHeight);
 
+            foreach ($pageEntries as $e) {
+                if ($e['type'] === 'rule') {
+                    $graphics .= "0.82 0.83 0.86 RG\n0.75 w\n";
+                    $graphics .= sprintf("%.2F %.2F m %.2F %.2F l S\n", $e['x1'], $e['y'], $e['x2'], $e['y']);
+                } elseif (!empty($e['checkbox'])) {
+                    $graphics .= "0.3 0.32 0.37 RG\n0.9 w\n";
+                    $graphics .= sprintf("%.2F %.2F 9 9 re S\n", $e['checkboxX'], $e['checkboxY']);
+                }
+            }
+
+            $graphics .= "0.85 0.86 0.89 RG\n0.75 w\n";
+            $graphics .= sprintf("%.2F 34 m %.2F 34 l S\n", $marginX, $w - $marginX);
+
+            // -- Text: Kopfzeile, Inhalt, Fußzeile --
+            $text = "BT\n";
+            $text .= "1 1 1 rg\n/F2 17 Tf\n";
+            $text .= sprintf("1 0 0 1 %.2F %.2F Tm\n", $marginX, $h - 32);
+            $text .= '(' . $this->pdfEscape($this->headerTitle) . ") Tj\n";
+            if ($this->headerSubtitle !== '') {
+                $text .= "0.7 0.79 1 rg\n/F1 10 Tf\n";
+                $text .= sprintf("1 0 0 1 %.2F %.2F Tm\n", $marginX, $h - 49);
+                $text .= '(' . $this->pdfEscape($this->headerSubtitle) . ") Tj\n";
+            }
+
+            foreach ($pageEntries as $e) {
+                if ($e['type'] === 'multitext') {
+                    foreach ($e['runs'] as $r) {
+                        $c = $r['color'];
+                        $text .= sprintf("%.3F %.3F %.3F rg\n", $c[0], $c[1], $c[2]);
+                        $font = $r['bold'] ? '/F2' : '/F1';
+                        $text .= sprintf("%s %d Tf\n", $font, $r['size']);
+                        $text .= sprintf("1 0 0 1 %.2F %.2F Tm\n", $r['x'], $r['y']);
+                        $text .= '(' . $this->pdfEscape($r['text']) . ") Tj\n";
+                    }
+                    continue;
+                }
+                if ($e['type'] !== 'text') {
+                    continue;
+                }
+                $c = $e['color'];
+                $text .= sprintf("%.3F %.3F %.3F rg\n", $c[0], $c[1], $c[2]);
+                $font = $e['bold'] ? '/F2' : '/F1';
+                $text .= sprintf("%s %d Tf\n", $font, $e['size']);
+                $text .= sprintf("1 0 0 1 %.2F %.2F Tm\n", $e['x'], $e['y']);
+                $text .= '(' . $this->pdfEscape($e['text']) . ") Tj\n";
+            }
+
+            $text .= "0.5 0.5 0.53 rg\n/F1 8 Tf\n";
+            if ($this->footerText !== '') {
+                $text .= sprintf("1 0 0 1 %.2F 22 Tm\n", $marginX);
+                $text .= '(' . $this->pdfEscape($this->footerText) . ") Tj\n";
+            }
+            $pageLabel = 'Seite ' . $pageIndex . ' von ' . $totalPages;
+            $pageLabelX = $w - $marginX - (strlen($pageLabel) * 4.3);
+            $text .= sprintf("1 0 0 1 %.2F 22 Tm\n", $pageLabelX);
+            $text .= '(' . $this->pdfEscape($pageLabel) . ") Tj\n";
+            $text .= "ET";
+
+            $stream = $graphics . $text;
             $objects[$contentNum] = "<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "\nendstream";
             $objects[$pageNum] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " . $w . ' ' . $h . "] "
                 . "/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents " . $contentNum . " 0 R >>";

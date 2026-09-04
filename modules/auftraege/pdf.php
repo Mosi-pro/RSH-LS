@@ -29,43 +29,42 @@ $itemsStmt->execute([$id]);
 $items = $itemsStmt->fetchAll();
 
 $pdf = new SimplePdf();
-$pdf->addLine('AUFTRAG #' . $order['order_number'], 18, true, 0);
-$pdf->addLine($order['title'], 13, false, 6);
-$pdf->addSpacer(14);
+$pdf->setHeader('AUFTRAG #' . $order['order_number'], $order['title']);
+$pdf->setFooter('RSH Technik · erstellt am ' . date('d.m.Y H:i'));
 
-$pdf->addLine('Kunde/Veranstalter: ' . ($order['customer'] ?: '-'), 10, false, 2);
-$pdf->addLine('Ansprechpartner: ' . ($order['contact_person'] ?: '-'), 10, false, 2);
-$pdf->addLine('Veranstaltungsort: ' . ($order['location'] ?: '-'), 10, false, 2);
-$pdf->addLine('Veranstaltungsdatum: ' . format_date($order['event_date']), 10, false, 2);
-$pdf->addLine('Aufbau: ' . format_date($order['setup_date']), 10, false, 2);
-$pdf->addLine('Abbau: ' . format_date($order['teardown_date']), 10, false, 2);
-$pdf->addLine('Verantwortlich: ' . ($order['responsible_name'] ?: '-'), 10, false, 2);
-$pdf->addLine('Status: ' . order_status_label($order['status']), 10, false, 2);
-$pdf->addSpacer(16);
+$pdf->addKeyValue('Kunde / Veranstalter', (string)$order['customer'], 0);
+$pdf->addKeyValue('Ansprechpartner', (string)$order['contact_person']);
+$pdf->addKeyValue('Veranstaltungsort', (string)$order['location']);
+$pdf->addKeyValue('Veranstaltungsdatum', format_date($order['event_date']));
+$pdf->addKeyValue('Aufbau', format_date($order['setup_date']));
+$pdf->addKeyValue('Abbau', format_date($order['teardown_date']));
+$pdf->addKeyValue('Verantwortlich', (string)$order['responsible_name']);
+$pdf->addKeyValue('Status', order_status_label($order['status']));
 
-$pdf->addLine('GEPLANTE TECHNIK (' . count($items) . ' Positionen)', 12, true, 0);
+$pdf->addRule(14);
+$pdf->addLine('GEPLANTE TECHNIK  ·  ' . count($items) . ' Positionen', 12, true, 10);
 $pdf->addSpacer(6);
 
 if (!$items) {
-    $pdf->addLine('Keine Technik zugeordnet.', 10, false, 2);
+    $pdf->addLine('Keine Technik zugeordnet.', 10, false, 4);
 } else {
     foreach ($items as $it) {
         $label = $it['is_bulk']
-            ? $it['quantity'] . ' x ' . $it['device_name']
-            : $it['inventory_number'] . '  ' . $it['device_name'];
-        $pdf->addLine('[ ]  ' . $label, 10, false, 4);
+            ? $it['quantity'] . ' × ' . $it['device_name']
+            : $it['inventory_number'] . '   ' . $it['device_name'];
+        $pdf->addLine($label, 10, false, 6, ['checkbox' => true]);
         if ($it['note']) {
-            $pdf->addLine('       ' . $it['note'], 9, false, 1);
+            $pdf->addLine($it['note'], 8.5, false, 1, ['color' => [0.5, 0.52, 0.57]]);
         }
     }
 }
 
 if ($order['description']) {
-    $pdf->addSpacer(16);
-    $pdf->addLine('BESCHREIBUNG', 12, true, 0);
+    $pdf->addRule(16);
+    $pdf->addLine('BESCHREIBUNG', 12, true, 10);
     $pdf->addSpacer(4);
     foreach (explode("\n", $order['description']) as $line) {
-        $pdf->addLine($line, 10, false, 2);
+        $pdf->addLine($line, 10, false, 3);
     }
 }
 

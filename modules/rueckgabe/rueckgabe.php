@@ -45,6 +45,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('modules/rueckgabe/rueckgabe.php?order=' . urlencode($orderNumber) . ($terminal ? '&terminal=1' : ''));
 
+    } elseif ($action === 'scan_confirm') {
+        $code = trim(input('code'));
+        $devStmt = $pdo->prepare('SELECT id, inventory_number, name FROM devices WHERE inventory_number = ?');
+        $devStmt->execute([$code]);
+        $dev = $devStmt->fetch();
+
+        if (!$dev) {
+            flash('error', '„' . $code . '“ wurde nicht gefunden.');
+        } else {
+            $stmt = $pdo->prepare('SELECT * FROM order_devices WHERE order_id = ? AND device_id = ?');
+            $stmt->execute([(int)$order['id'], $dev['id']]);
+            $od = $stmt->fetch();
+
+            if (!$od) {
+                flash('error', $dev['inventory_number'] . ' gehört nicht zu diesem Auftrag.');
+            } elseif ($od['status'] !== 'ausgegeben') {
+                flash('info', $dev['inventory_number'] . ' ist nicht als ausgegeben markiert.');
+            } else {
+                // Scan bestätigt standardmäßig "vollständig" – Ausnahmen werden manuell über
+                // den Button "NICHT VOLLSTÄNDIG" in der Liste erfasst.
+                $pdo->prepare('UPDATE order_devices SET status = "zurueckgegeben", returned_at = CURRENT_TIMESTAMP, complete = 1 WHERE id = ?')
+                    ->execute([$od['id']]);
+                $pdo->prepare('UPDATE devices SET status = "verfuegbar", current_order_id = NULL WHERE id = ?')->execute([$dev['id']]);
+                log_activity('Gerät vollständig zurückgegeben (Scan)', 'order', (int)$order['id'], $dev['inventory_number'] . ' ' . $dev['name']);
+                flash('success', $dev['inventory_number'] . ' – ' . $dev['name'] . ' als vollständig zurückgenommen.');
+            }
+        }
+        redirect('modules/rueckgabe/rueckgabe.php?order=' . urlencode($orderNumber) . ($terminal ? '&terminal=1' : ''));
+
     } elseif ($action === 'finish') {
         $employeeId = preg_replace('/\D/', '', input('employee_id'));
         $empStmt = $pdo->prepare('SELECT * FROM users WHERE employee_id = ? AND active = 1');
@@ -109,6 +138,19 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="progress-bar"><div class="progress-bar-fill" style="width:<?= $progress ?>%"></div></div>
 <p class="small muted"><?= $returned ?> / <?= $total ?> Geräte zurückgegeben</p>
+
+<?php if ($open > 0): ?>
+<form method="post" class="card card-flat">
+    <?= csrf_field() ?>
+    <input type="hidden" name="form_action" value="scan_confirm">
+    <div class="field">
+        <label>Gerät scannen / Inventarnummer eingeben (bestätigt „vollständig“)</label>
+        <input type="text" name="code" placeholder="RSH-0042" data-autofocus data-scan-target>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Bestätigen</button>
+    <span class="small muted">Für „nicht vollständig“ bitte unten den Button bei dem jeweiligen Gerät nutzen.</span>
+</form>
+<?php endif; ?>
 
 <?php foreach ($orderDevices as $od): ?>
     <?php if ($od['status'] === 'zurueckgegeben'): ?>
