@@ -1,33 +1,11 @@
 # RSH Technik Lager System
-# Diese Datei ist relevant, falls der Dokumentenpfad auf den Projekt-Root zeigt
-# und Apache mod_rewrite/mod_headers zur Verfügung stehen.
-
-Options -Indexes
+# Hinweis: <Directory>-Blöcke sind in .htaccess-Dateien nicht erlaubt
+# (nur in der Apache-Hauptkonfiguration) und wurden daher entfernt.
+# Der Schutz von includes/ und sql/ erfolgt über jeweils eigene
+# .htaccess-Dateien in diesen Ordnern.
 
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
-</IfModule>
-
-# includes/ und sql/ enthalten keine direkt aufrufbaren Seiten
-<IfModule mod_authz_core.c>
-    <Directory "includes">
-        Require all denied
-    </Directory>
-    <Directory "sql">
-        Require all denied
-    </Directory>
-</IfModule>
-<IfModule !mod_authz_core.c>
-    <IfModule mod_authz_host.c>
-        <Directory "includes">
-            Order deny,allow
-            Deny from all
-        </Directory>
-        <Directory "sql">
-            Order deny,allow
-            Deny from all
-        </Directory>
-    </IfModule>
 </IfModule>
