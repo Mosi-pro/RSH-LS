@@ -22,8 +22,10 @@ require_once __DIR__ . '/../includes/header.php';
     <a class="terminal-tile" href="<?= url('modules/lager/index.php') ?>">
         <span class="t-icon">🔎</span> LAGER SUCHEN
     </a>
+    <?php if ($user['role'] !== 'lager_terminal'): ?>
     <a class="terminal-tile" href="<?= url('public/dashboard.php') ?>">
         <span class="t-icon">⌂</span> ZUM DASHBOARD
     </a>
+    <?php endif; ?>
 </div>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

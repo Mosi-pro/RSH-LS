@@ -2,8 +2,12 @@
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_login();
 
-$pdo  = db();
 $user = current_user();
+if ($user['role'] === 'lager_terminal') {
+    redirect('terminal/index.php');
+}
+
+$pdo = db();
 
 $deviceCount = (int)$pdo->query('SELECT COUNT(*) FROM devices')->fetchColumn();
 $openOrders  = (int)$pdo->query("SELECT COUNT(*) FROM orders WHERE status NOT IN ('abgeschlossen','storniert')")->fetchColumn();

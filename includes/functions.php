@@ -19,6 +19,13 @@ function url(string $path): string
     return BASE_URL . '/' . ltrim($path, '/');
 }
 
+/** Ziel nach dem Login: Lager-Terminal-Rolle kommt immer direkt aufs Terminal. */
+function home_path(): string
+{
+    $user = current_user();
+    return ($user && $user['role'] === 'lager_terminal') ? 'terminal/index.php' : 'public/dashboard.php';
+}
+
 function redirect(string $path): void
 {
     header('Location: ' . url($path));

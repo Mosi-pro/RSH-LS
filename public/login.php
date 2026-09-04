@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../includes/bootstrap.php';
 
 if (is_logged_in()) {
-    redirect('public/dashboard.php');
+    redirect(home_path());
 }
 
 $error = '';
@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($employeeId === '') {
         $error = 'Bitte Mitarbeiter-ID eingeben.';
     } elseif (attempt_login($employeeId)) {
-        redirect('public/dashboard.php');
+        redirect(home_path());
     } else {
         $error = 'Unbekannte oder inaktive Mitarbeiter-ID.';
     }
