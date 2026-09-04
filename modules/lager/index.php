@@ -49,6 +49,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <a href="<?= url('modules/lager/lagerorte.php') ?>" class="btn btn-ghost btn-sm">Lagerorte</a>
         <a href="<?= url('modules/lager/kategorien.php') ?>" class="btn btn-ghost btn-sm">Kategorien</a>
         <?php if (has_permission('lager.edit')): ?>
+            <a href="<?= url('modules/lager/import.php') ?>" class="btn btn-ghost btn-sm">Aus Excel importieren</a>
             <a href="<?= url('modules/lager/geraet.php?id=new') ?>" class="btn btn-primary btn-sm">+ Neues Gerät</a>
         <?php endif; ?>
     </div>
