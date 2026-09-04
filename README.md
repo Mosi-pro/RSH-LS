@@ -1,7 +1,9 @@
 # RSH Technik Lager System (RSH-LS)
 
 Internes Lager-, Auftrags- und Veranstaltungsverwaltungssystem der RSH Technik AG.
-PHP 8.x + MySQL/MariaDB, ohne Framework, lauffähig auf normalem PHP-Webhosting.
+PHP 8.x, ohne Framework, lauffähig auf normalem PHP-Webhosting. Alle Daten werden in
+**einer einzigen SQLite-Datei** (`data/rsh-ls.sqlite`) gespeichert – kein separater
+Datenbankserver, keine Zugangsdaten, kein manueller SQL-Import nötig.
 
 Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
 
@@ -25,30 +27,36 @@ Reports/Statistiken, PDF/Excel-Export, Benachrichtigungen.
 
 ## Setup
 
-1. Datenbank anlegen und `sql/database.sql` importieren (enthält Beispiel-Mitarbeiter
-   `198`, `203`, `245`, `999`).
-2. Umgebungsvariablen setzen (z.B. über die Hosting-Oberfläche oder eine `.env`-Lösung
-   des Hosters – `includes/config.php` liest sie über `getenv()`):
-   - `RSH_DB_HOST`, `RSH_DB_NAME`, `RSH_DB_USER`, `RSH_DB_PASS`
-   - `RSH_ENV` (`production` oder `development`)
-   - `RSH_BASE_URL` (nur nötig, falls die Anwendung nicht im Domain-Root liegt)
-3. Document Root auf das Projekt-Root-Verzeichnis zeigen lassen (nicht auf `public/`,
+1. Alle Projektdateien per FTP/SFTP auf den Webspace hochladen.
+2. Document Root auf das Projekt-Root-Verzeichnis zeigen lassen (nicht auf `public/`,
    da `modules/`, `terminal/` und `api/` ebenfalls direkt aufgerufen werden).
-4. `uploads/` beschreibbar machen (für zukünftige Bild-Uploads).
-5. Aufruf von `/public/index.php` bzw. `/` leitet automatisch zum Login weiter.
+3. `data/` und `uploads/` beschreibbar machen (Verzeichnisrechte 755/775).
+4. Fertig. Beim allerersten Aufruf legt die Anwendung `data/rsh-ls.sqlite` automatisch
+   an – inklusive Schema und Beispiel-Mitarbeitern (`198`, `203`, `245`, `999`).
+
+Optional per Umgebungsvariable (Hosting-Panel) oder `includes/config.local.php`
+(nicht versioniert, siehe `.gitignore`) anpassbar:
+- `RSH_ENV` (`production` oder `development` – zeigt PHP-Fehler im Browser an)
+- `RSH_BASE_URL` (nur nötig, falls die Anwendung nicht im Domain-Root liegt)
+- `RSH_DB_PATH` (nur nötig, falls die SQLite-Datei woanders liegen soll)
+
+### Backup
+
+Da alle Daten in einer einzigen Datei liegen, ist ein Backup denkbar einfach:
+`data/rsh-ls.sqlite` regelmäßig kopieren (z.B. per Cronjob/FTP), fertig.
 
 ## Ordnerstruktur
 
 ```
 /public      Login, Dashboard, Suche
-/includes    Bootstrap, DB, Auth, Rechte, Helper, Layout
+/includes    Bootstrap, DB (SQLite), Schema, Auth, Rechte, Helper, Layout
 /modules     Lager, Aufträge, Veranstaltungen, Ausgabe, Rückgabe, Mitarbeiter, Historie
 /terminal    Große Touch-Oberfläche für das Lager-Tablet
 /api         JSON-Endpunkte (Suche)
 /admin       Zentrale Verwaltungsseite (nur Technikleitung)
 /assets      CSS/JS
+/data        SQLite-Datenbankdatei (wird automatisch angelegt)
 /uploads     Zukünftige Datei-Uploads
-/sql         Datenbankschema
 ```
 
 ## Sicherheitskonzept
@@ -60,8 +68,9 @@ Reports/Statistiken, PDF/Excel-Export, Benachrichtigungen.
 - CSRF-Token auf allen datenverändernden Formularen.
 - Session-Regeneration beim Login, automatischer Logout nach Inaktivität
   (Lager-Terminal-Rolle bleibt bewusst länger angemeldet).
-- `includes/`, `sql/` und PHP-Ausführung in `uploads/` sind serverseitig gesperrt
-  (`.htaccess`) bzw. tragen einen Direktzugriffs-Schutz in jeder Datei.
+- `includes/`, `data/` und PHP-Ausführung in `uploads/` sind serverseitig gesperrt
+  (`.htaccess`) bzw. tragen einen Direktzugriffs-Schutz in jeder Datei – die SQLite-Datei
+  darf niemals über den Browser direkt herunterladbar sein.
 - Jede relevante Aktion wird unveränderlich im Audit-Log (`activity_log`) protokolliert.
 
 ## Rollen

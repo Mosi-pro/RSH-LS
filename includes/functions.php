@@ -61,7 +61,7 @@ function generate_inventory_number(): string
 {
     $pdo = db();
     for ($i = 0; $i < 50; $i++) {
-        $stmt = $pdo->query('SELECT MAX(CAST(SUBSTRING(inventory_number, ' . (strlen(INVENTORY_PREFIX) + 1) . ') AS UNSIGNED)) AS max_num FROM devices');
+        $stmt = $pdo->query('SELECT MAX(CAST(SUBSTR(inventory_number, ' . (strlen(INVENTORY_PREFIX) + 1) . ') AS INTEGER)) AS max_num FROM devices');
         $max = (int)($stmt->fetch()['max_num'] ?? 0);
         $candidate = INVENTORY_PREFIX . str_pad((string)($max + 1 + $i), INVENTORY_DIGITS, '0', STR_PAD_LEFT);
         $check = $pdo->prepare('SELECT COUNT(*) FROM devices WHERE inventory_number = ?');

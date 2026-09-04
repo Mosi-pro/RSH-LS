@@ -8,8 +8,7 @@ if (!defined('RSH_APP')) {
     exit('Direktzugriff nicht erlaubt.');
 }
 
-// --- Lokale Zugangsdaten (nicht versioniert, siehe .gitignore) --
-// Setzt per putenv() die RSH_DB_* Variablen für dieses eine Hosting.
+// --- Lokale Einstellungen (nicht versioniert, siehe .gitignore) --
 if (file_exists(__DIR__ . '/config.local.php')) {
     require __DIR__ . '/config.local.php';
 }
@@ -19,17 +18,14 @@ define('APP_NAME', 'RSH Technik Lager System');
 define('APP_SHORT', 'RSH-LS');
 define('APP_ENV', getenv('RSH_ENV') ?: 'production'); // 'development' | 'production'
 
-// --- Datenbank --------------------------------------------------
-define('DB_HOST', getenv('RSH_DB_HOST') ?: 'localhost');
-define('DB_NAME', getenv('RSH_DB_NAME') ?: 'rsh_ls');
-define('DB_USER', getenv('RSH_DB_USER') ?: 'rsh_ls');
-define('DB_PASS', getenv('RSH_DB_PASS') ?: '');
-define('DB_CHARSET', 'utf8mb4');
-
 // --- Pfade --------------------------------------------------
 define('ROOT_PATH', dirname(__DIR__));
 define('BASE_URL', rtrim(getenv('RSH_BASE_URL') ?: '', '/')); // z.B. '' oder '/rsh-ls'
 define('UPLOAD_PATH', ROOT_PATH . '/uploads');
+
+// --- Datenbank: eine einzelne SQLite-Datei, kein Datenbankserver nötig ---
+// Wird beim ersten Aufruf automatisch angelegt (siehe includes/database.php).
+define('DB_PATH', getenv('RSH_DB_PATH') ?: ROOT_PATH . '/data/rsh-ls.sqlite');
 
 // --- Sicherheit / Session --------------------------------------
 define('SESSION_NAME', 'RSHLS_SESSION');

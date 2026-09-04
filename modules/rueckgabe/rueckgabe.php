@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($od && $od['status'] === 'ausgegeben') {
             $complete = $quality === 'complete' ? 1 : 0;
-            $pdo->prepare('UPDATE order_devices SET status = "zurueckgegeben", returned_at = NOW(), complete = ?, missing_notes = ? WHERE id = ?')
+            $pdo->prepare('UPDATE order_devices SET status = "zurueckgegeben", returned_at = CURRENT_TIMESTAMP, complete = ?, missing_notes = ? WHERE id = ?')
                 ->execute([$complete, $complete ? null : $notes, $od['id']]);
             $pdo->prepare('UPDATE devices SET status = "verfuegbar", current_order_id = NULL WHERE id = ?')->execute([$deviceId]);
 
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $complete = (int)$compStmt->fetchColumn();
                 $incomplete = $total - $complete;
 
-                $pdo->prepare('INSERT INTO returns (order_id, returned_by, returned_at, total_devices, complete_devices, incomplete_devices) VALUES (?, ?, NOW(), ?, ?, ?)')
+                $pdo->prepare('INSERT INTO returns (order_id, returned_by, returned_at, total_devices, complete_devices, incomplete_devices) VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?)')
                     ->execute([(int)$order['id'], $employee['id'], $total, $complete, $incomplete]);
                 $pdo->prepare('UPDATE order_devices SET returned_by = ? WHERE order_id = ? AND returned_by IS NULL')
                     ->execute([$employee['id'], (int)$order['id']]);

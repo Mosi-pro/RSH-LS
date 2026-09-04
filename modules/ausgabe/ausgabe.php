@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([(int)$order['id'], $deviceId]);
         $od = $stmt->fetch();
         if ($od && $od['status'] === 'reserviert') {
-            $pdo->prepare('UPDATE order_devices SET status = "ausgegeben", checked_out_at = NOW() WHERE id = ?')->execute([$od['id']]);
+            $pdo->prepare('UPDATE order_devices SET status = "ausgegeben", checked_out_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([$od['id']]);
             $pdo->prepare('UPDATE devices SET status = "ausgegeben" WHERE id = ?')->execute([$deviceId]);
             $devStmt = $pdo->prepare('SELECT inventory_number, name FROM devices WHERE id = ?');
             $devStmt->execute([$deviceId]);
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $pdo->prepare('UPDATE order_devices SET checked_out_by = ? WHERE order_id = ? AND status = "ausgegeben" AND checked_out_by IS NULL')
                     ->execute([$employee['id'], (int)$order['id']]);
-                $pdo->prepare('INSERT INTO checkouts (order_id, issued_by, issued_at, item_count) VALUES (?, ?, NOW(), ?)')
+                $pdo->prepare('INSERT INTO checkouts (order_id, issued_by, issued_at, item_count) VALUES (?, ?, CURRENT_TIMESTAMP, ?)')
                     ->execute([(int)$order['id'], $employee['id'], $total]);
                 $pdo->prepare('UPDATE orders SET status = "ausgegeben" WHERE id = ?')->execute([(int)$order['id']]);
                 log_activity('Auftrag ausgegeben', 'order', (int)$order['id'], $total . ' Positionen, ausgegeben an ' . $employee['name']);

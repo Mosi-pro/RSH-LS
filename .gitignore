@@ -4,6 +4,10 @@
 .env
 *.local.php
 
+# Laufzeit-Datenbank (SQLite, wird beim ersten Aufruf automatisch angelegt)
+data/*.sqlite
+data/*.sqlite-*
+
 # Hochgeladene Dateien (nur Struktur wird versioniert)
 uploads/*
 !uploads/.htaccess
