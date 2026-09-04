@@ -1,0 +1,24 @@
+# RSH Technik Lager System
+
+# Lokale/Umgebungs-Konfiguration
+.env
+*.local.php
+
+# Hochgeladene Dateien (nur Struktur wird versioniert)
+uploads/*
+!uploads/.htaccess
+!uploads/devices/
+!uploads/profiles/
+uploads/devices/*
+!uploads/devices/.gitkeep
+uploads/profiles/*
+!uploads/profiles/.gitkeep
+
+# Betriebssystem / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
