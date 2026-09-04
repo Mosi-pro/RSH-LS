@@ -35,6 +35,11 @@ Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
 19. Werkstatt-Bereich (eigene Oberfläche, nur Technikleitung + Werkstatt-Account):
     Gerät per Scan in die Reparatur aufnehmen, erneutes Scannen checkt aus, Lösung
     eintragen – der Melder des Defekts wird automatisch benachrichtigt
+20. Neu gemeldete Defekte laufen sofort als „Eingehende Aufträge" in der Werkstatt-
+    Oberfläche auf (inkl. Benachrichtigung an die Werkstatt) – nicht erst nach dem
+    Einscannen
+21. Werkstattauftrag als professionelles PDF mit eingebettetem QR-Code (verweist auf
+    die digitale Detailseite) – druckbar, Lösungsfeld zum Ausfüllen von Hand
 
 Noch nicht enthalten: Barcode-*Erzeugung* für Nicht-Geräte-Objekte, E-Mail-/Telegram-
 Zustellung von Benachrichtigungen (aktuell nur In-App), Kundenportal, Mehrsprachigkeit.
@@ -121,15 +126,25 @@ zugänglich, unabhängig von den übrigen Lagerrechten.
 
 ## Werkstatt
 
-Beispiel-Account `355` (Rolle „Werkstatt“, Mitarbeiter-ID über die
-Mitarbeiterverwaltung änderbar). Eigene Oberfläche unter „Werkstatt“ im Menü:
+Beispiel-Account `355` (Rolle „Werkstatt”, Mitarbeiter-ID über die
+Mitarbeiterverwaltung änderbar). Eigene Oberfläche unter „Werkstatt” im Menü:
+0. Sobald irgendwer einen Defekt meldet, erscheint er **sofort** oben unter
+   „Eingehende Aufträge” (unabhängig vom physischen Einscannen) und die
+   Werkstatt wird per Glocke benachrichtigt.
 1. Gerät scannen/eingeben → wird in die Reparatur aufgenommen (Status
-   „In Reparatur“), ein offener Defekt zum Gerät wechselt auf „In Bearbeitung“.
+   „In Reparatur”), ein offener Defekt zum Gerät wechselt auf „In Bearbeitung”.
 2. Dasselbe Gerät erneut scannen → Auscheck-Seite: Lösung eintragen, Status
    nach der Reparatur festlegen (verfügbar / weiterhin defekt / verloren /
    aussortiert).
 3. Beim Auschecken wird der ursprüngliche Melder des Defekts automatisch über
    die Glocke oben rechts benachrichtigt (Fehlerbeschreibung + Lösungstext).
+
+Zu jeder Meldung lässt sich über „PDF” ein professioneller Werkstattauftrag
+ausdrucken (Gerät, Problem, Priorität, Melder, ggf. Lösung) mit einem
+eingebetteten QR-Code, der auf die digitale Detailseite verweist – der
+QR-Code wird komplett serverseitig in reinem PHP erzeugt (`includes/qr_encoder.php`,
+kein Composer/keine externe Bibliothek nötig) und direkt als Vektorgrafik ins PDF
+gezeichnet.
 
 ## QR-Codes
 

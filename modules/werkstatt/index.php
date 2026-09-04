@@ -43,6 +43,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('modules/werkstatt/index.php');
 }
 
+$incoming = $pdo->query(
+    "SELECT f.*, d.inventory_number, d.name AS device_name, u.name AS reporter_name
+     FROM defects f
+     JOIN devices d ON d.id = f.device_id
+     LEFT JOIN users u ON u.id = f.reported_by
+     WHERE f.status = 'offen'
+     ORDER BY (f.priority = 'dringend') DESC, f.created_at ASC"
+)->fetchAll();
+
 $inRepair = $pdo->query(
     "SELECT d.*, (SELECT problem FROM defects f WHERE f.device_id = d.id AND f.status = 'in_bearbeitung' ORDER BY f.created_at DESC LIMIT 1) AS problem
      FROM devices d WHERE d.status = 'in_reparatur' ORDER BY d.updated_at DESC"
@@ -72,6 +81,35 @@ require_once __DIR__ . '/../../includes/header.php';
     <p class="small muted">Erstes Scannen nimmt das Gerät in die Reparatur auf. Nochmaliges Scannen desselben
         Geräts öffnet die Auscheck-Seite (Lösung eintragen, Status festlegen).</p>
 </form>
+
+<div class="section-head"><h2>Eingehende Aufträge (<?= count($incoming) ?>)</h2></div>
+<?php if (!$incoming): ?>
+    <div class="empty-state"><div class="es-icon">📥</div>Aktuell liegen keine neu gemeldeten Defekte vor.</div>
+<?php else: ?>
+<div class="table-wrap">
+    <table>
+        <thead><tr><th>Inv.-Nr.</th><th>Gerät</th><th>Problem</th><th>Priorität</th><th>Gemeldet von</th><th>Datum</th><th></th></tr></thead>
+        <tbody>
+        <?php foreach ($incoming as $f): ?>
+            <tr>
+                <td><?= e($f['inventory_number']) ?></td>
+                <td><?= e($f['device_name']) ?></td>
+                <td><?= e(mb_strimwidth($f['problem'], 0, 60, '…')) ?></td>
+                <td><span class="badge badge-<?= $f['priority'] === 'dringend' ? 'danger' : ($f['priority'] === 'niedrig' ? 'muted' : 'warn') ?>"><?= e(ucfirst($f['priority'])) ?></span></td>
+                <td><?= e($f['reporter_name'] ?? '–') ?></td>
+                <td><?= format_datetime($f['created_at']) ?></td>
+                <td class="text-right">
+                    <a href="<?= url('modules/defekte/defekt.php?id=' . (int)$f['id']) ?>" class="btn btn-ghost btn-sm">Details</a>
+                    <a href="<?= url('modules/defekte/pdf.php?id=' . (int)$f['id']) ?>" class="btn btn-sm" target="_blank">PDF</a>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+<?php endif; ?>
+<p class="small muted">Sobald das Gerät physisch in der Werkstatt ankommt, oben scannen – es wird dann in
+    Reparatur genommen und aus dieser Liste in den Bereich „Aktuell in der Werkstatt“ verschoben.</p>
 
 <div class="section-head"><h2>Aktuell in der Werkstatt (<?= count($inRepair) ?>)</h2></div>
 <?php if (!$inRepair): ?>

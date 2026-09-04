@@ -35,6 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         log_activity('Defekt gemeldet', 'device', $deviceId, $device['inventory_number'] . ' – ' . $problem);
         log_activity('Defektmeldung erstellt', 'defect', $defectId, $device['inventory_number'] . ' (' . $priority . ')');
 
+        $werkstattUsers = $pdo->query("SELECT id FROM users WHERE role = 'werkstatt' AND active = 1")->fetchAll();
+        foreach ($werkstattUsers as $w) {
+            create_notification(
+                (int)$w['id'],
+                'Neuer Werkstattauftrag: ' . $device['inventory_number'],
+                $device['name'] . ' – ' . $problem . ' (Priorität: ' . ucfirst($priority) . ')',
+                'modules/defekte/defekt.php?id=' . $defectId
+            );
+        }
+
         flash('success', 'Defekt für ' . $device['inventory_number'] . ' gemeldet.');
         redirect('modules/defekte/defekt.php?id=' . $defectId);
     }

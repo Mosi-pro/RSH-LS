@@ -55,6 +55,7 @@ const ROLE_PERMISSIONS = [
     'werkstatt' => [
         'werkstatt.access',
         'lager.view',
+        'defekte.report',
     ],
     'gast' => [
         'lager.view',

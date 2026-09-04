@@ -12,6 +12,8 @@ if (!defined('RSH_APP')) {
     exit('Direktzugriff nicht erlaubt.');
 }
 
+require_once __DIR__ . '/qr_encoder.php';
+
 class SimplePdf
 {
     /** @var array<int, array{text:string,size:int,bold:bool,gapBefore:float,checkbox:bool,rule:bool,color:array}> */
@@ -19,11 +21,18 @@ class SimplePdf
     private string $headerTitle = '';
     private string $headerSubtitle = '';
     private string $footerText = '';
+    private ?array $headerQr = null;
 
     public function setHeader(string $title, string $subtitle = ''): void
     {
         $this->headerTitle = $title;
         $this->headerSubtitle = $subtitle;
+    }
+
+    /** Zeigt oben rechts im Kopfband einen QR-Code, der auf $url verweist (digitale Ansicht). */
+    public function setHeaderQrUrl(string $url): void
+    {
+        $this->headerQr = qr_encode($url);
     }
 
     public function setFooter(string $text): void
@@ -73,6 +82,14 @@ class SimplePdf
 
     private function pdfEscape(string $s): string
     {
+        // Häufige Unicode-Satzzeichen, die es nicht nach ISO-8859-1 (WinAnsi) schaffen,
+        // vorab durch Latin-1-Äquivalente ersetzen, statt sie als "?" darzustellen.
+        $s = strtr($s, [
+            "\u{2013}" => '-', "\u{2014}" => '-',
+            "\u{2018}" => "'", "\u{2019}" => "'",
+            "\u{201C}" => '"', "\u{201D}" => '"',
+            "\u{2026}" => '...',
+        ]);
         $s = @mb_convert_encoding($s, 'ISO-8859-1', 'UTF-8');
         if ($s === false) {
             $s = '';
@@ -150,6 +167,40 @@ class SimplePdf
         return $this->buildPdf($pages, $pageWidth, $pageHeight, $marginX, $headerHeight);
     }
 
+    /** Zeichnet den QR-Code (weiße Ruhezone + schwarze Module) oben rechts im Kopfband. */
+    private function renderQrGraphics(array $qr, float $w, float $h, float $marginX): string
+    {
+        $size = $qr['size'];
+        $matrix = $qr['matrix'];
+        $quiet = 3;
+        $boxSize = 44.0;
+        $moduleSize = $boxSize / ($size + 2 * $quiet);
+        $boxX = $w - $marginX - $boxSize;
+        $boxY = $h - 8 - $boxSize;
+
+        $g = "1 1 1 rg\n";
+        $g .= sprintf("%.2F %.2F %.2F %.2F re f\n", $boxX, $boxY, $boxSize, $boxSize);
+        $g .= "0 0 0 rg\n";
+        for ($row = 0; $row < $size; $row++) {
+            $col = 0;
+            while ($col < $size) {
+                if (!$matrix[$row][$col]) {
+                    $col++;
+                    continue;
+                }
+                $runStart = $col;
+                while ($col < $size && $matrix[$row][$col]) {
+                    $col++;
+                }
+                $runLen = $col - $runStart;
+                $rx = $boxX + ($quiet + $runStart) * $moduleSize;
+                $ry = $boxY + $boxSize - ($quiet + $row + 1) * $moduleSize;
+                $g .= sprintf("%.3F %.3F %.3F %.3F re f\n", $rx, $ry, $moduleSize * $runLen, $moduleSize);
+            }
+        }
+        return $g;
+    }
+
     /** @param array<int, array<int, array<string,mixed>>> $pages */
     private function buildPdf(array $pages, float $w, float $h, float $marginX, float $headerHeight): string
     {
@@ -173,6 +224,10 @@ class SimplePdf
             // -- Grafik: Kopfband, Häkchen-Kästchen, Trennlinien, Fußzeilenlinie --
             $graphics = sprintf("%.3F %.3F %.3F rg\n", 0.106, 0.118, 0.141);
             $graphics .= sprintf("0 %.2F %.2F %.2F re f\n", $h - $headerHeight, $w, $headerHeight);
+
+            if ($pageIndex === 1 && $this->headerQr !== null) {
+                $graphics .= $this->renderQrGraphics($this->headerQr, $w, $h, $marginX);
+            }
 
             foreach ($pageEntries as $e) {
                 if ($e['type'] === 'rule') {

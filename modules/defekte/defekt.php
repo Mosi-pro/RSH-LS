@@ -74,7 +74,10 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="field"><label>Lösung / Bemerkung</label><div><?= nl2br(e($defect['resolution_note'])) ?></div></div>
         <?php endif; ?>
     <?php endif; ?>
-    <a href="<?= url('modules/lager/geraet.php?id=' . (int)$defect['device_id']) ?>" class="btn btn-ghost btn-sm">Zum Gerät</a>
+    <div class="btn-row" style="margin-top:8px;">
+        <a href="<?= url('modules/lager/geraet.php?id=' . (int)$defect['device_id']) ?>" class="btn btn-ghost btn-sm">Zum Gerät</a>
+        <a href="<?= url('modules/defekte/pdf.php?id=' . (int)$defect['id']) ?>" class="btn btn-sm" target="_blank">Werkstattauftrag als PDF</a>
+    </div>
 </div>
 
 <?php if ($canManage): ?>
