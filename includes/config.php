@@ -8,6 +8,12 @@ if (!defined('RSH_APP')) {
     exit('Direktzugriff nicht erlaubt.');
 }
 
+// --- Lokale Zugangsdaten (nicht versioniert, siehe .gitignore) --
+// Setzt per putenv() die RSH_DB_* Variablen für dieses eine Hosting.
+if (file_exists(__DIR__ . '/config.local.php')) {
+    require __DIR__ . '/config.local.php';
+}
+
 // --- Umgebung -------------------------------------------------
 define('APP_NAME', 'RSH Technik Lager System');
 define('APP_SHORT', 'RSH-LS');
