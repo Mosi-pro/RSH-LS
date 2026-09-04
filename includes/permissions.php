@@ -9,6 +9,7 @@
  *   mitarbeiter               -> eigene Buchungen
  *   veranstaltungsleitung    -> Veranstaltungen + Aufträge
  *   lager_terminal            -> Ausgabe / Rückgabe
+ *   werkstatt                 -> eigene Werkstatt-Oberfläche (Reparatur-Check-in/-out)
  *   gast                      -> nur freigegebene Informationen
  */
 if (!defined('RSH_APP')) {
@@ -50,6 +51,10 @@ const ROLE_PERMISSIONS = [
         'auftraege.view',
         'ausgabe_rueckgabe.edit',
         'defekte.report',
+    ],
+    'werkstatt' => [
+        'werkstatt.access',
+        'lager.view',
     ],
     'gast' => [
         'lager.view',

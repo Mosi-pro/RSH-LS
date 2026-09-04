@@ -53,6 +53,9 @@ function nav_active(string $needle, string $currentPath): string
             <?php if (has_permission('defekte.report')): ?>
             <a href="<?= url('modules/defekte/index.php') ?>" class="nav-item<?= nav_active('/defekte/', $currentPath) ?>"><span class="ic">⚠</span> Defekte & Wartung</a>
             <?php endif; ?>
+            <?php if (has_permission('werkstatt.access')): ?>
+            <a href="<?= url('modules/werkstatt/index.php') ?>" class="nav-item<?= nav_active('/werkstatt/', $currentPath) ?>"><span class="ic">🔧</span> Werkstatt</a>
+            <?php endif; ?>
             <?php if (has_permission('mitarbeiter.view')): ?>
             <a href="<?= url('modules/mitarbeiter/index.php') ?>" class="nav-item<?= nav_active('/mitarbeiter/', $currentPath) ?>"><span class="ic">♙</span> Mitarbeiter</a>
             <?php endif; ?>
@@ -84,6 +87,11 @@ function nav_active(string $needle, string $currentPath): string
                 <input type="search" name="q" placeholder="Suche: Inventarnr., Gerät, Auftrag, Mitarbeiter …" value="<?= e($_GET['q'] ?? '') ?>">
             </form>
             <div class="topbar-spacer"></div>
+            <?php $unread = count_unread_notifications($user['id']); ?>
+            <a href="<?= url('public/notifications.php') ?>" class="notif-bell" title="Benachrichtigungen">
+                🔔
+                <?php if ($unread > 0): ?><span class="notif-badge"><?= $unread > 9 ? '9+' : $unread ?></span><?php endif; ?>
+            </a>
         </header>
         <main class="page">
             <?php foreach (get_flashes() as $flash): ?>

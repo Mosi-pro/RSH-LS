@@ -110,9 +110,12 @@ require_once __DIR__ . '/../../includes/header.php';
     <input type="hidden" name="form_action" value="mark_found">
     <div class="field">
         <label>Inventarnummer scannen/eingeben</label>
-        <input type="text" name="code" data-autofocus data-scan-target placeholder="RSH-0042">
+        <input type="text" id="scan-code" name="code" data-autofocus data-scan-target placeholder="RSH-0042">
     </div>
-    <button type="submit" class="btn btn-primary btn-sm">Als gefunden markieren</button>
+    <div class="btn-row">
+        <button type="submit" class="btn btn-primary btn-sm">Als gefunden markieren</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-camera-scan-for="scan-code">📷 Kamera</button>
+    </div>
 </form>
 
 <form method="post" class="btn-row" style="margin-bottom:16px;">

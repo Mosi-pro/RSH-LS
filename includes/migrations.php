@@ -59,6 +59,94 @@ function run_migrations(PDO $pdo): void
             )");
             $pdo->exec("CREATE INDEX idx_inv_items_inventory ON inventory_items(inventory_id)");
         },
+
+        3 => function (PDO $pdo) {
+            // -- users: Rolle "werkstatt" zur CHECK-Constraint hinzufügen -----
+            // SQLite kann CHECK-Constraints nicht per ALTER TABLE ändern -> Tabelle neu aufbauen.
+            $pdo->exec("CREATE TABLE users_new (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                employee_id     TEXT NOT NULL UNIQUE,
+                name            TEXT NOT NULL,
+                role            TEXT NOT NULL DEFAULT 'mitarbeiter'
+                                    CHECK (role IN ('technikleitung','lagerleitung','mitarbeiter','veranstaltungsleitung','lager_terminal','werkstatt','gast')),
+                active          INTEGER NOT NULL DEFAULT 1,
+                profile_image   TEXT,
+                notes           TEXT,
+                created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $pdo->exec("INSERT INTO users_new (id, employee_id, name, role, active, profile_image, notes, created_at, updated_at)
+                         SELECT id, employee_id, name, role, active, profile_image, notes, created_at, updated_at FROM users");
+            $pdo->exec("DROP TABLE users");
+            $pdo->exec("ALTER TABLE users_new RENAME TO users");
+            $pdo->exec("CREATE TRIGGER trg_users_updated_at AFTER UPDATE ON users
+                        BEGIN
+                            UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                        END");
+
+            // Werkstatt-Sammelaccount anlegen (Mitarbeiter-ID per Mitarbeiterverwaltung änderbar).
+            $exists = $pdo->query("SELECT COUNT(*) FROM users WHERE employee_id = '355'")->fetchColumn();
+            if (!$exists) {
+                $pdo->exec("INSERT INTO users (employee_id, name, role, active) VALUES ('355', 'Werkstatt', 'werkstatt', 1)");
+            }
+
+            // -- devices: Status "in_reparatur" zur CHECK-Constraint hinzufügen -----
+            $pdo->exec("CREATE TABLE devices_new (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                inventory_number    TEXT NOT NULL UNIQUE,
+                name                TEXT NOT NULL,
+                category_id         INTEGER REFERENCES device_categories(id) ON DELETE SET NULL,
+                manufacturer        TEXT,
+                model               TEXT,
+                serial_number       TEXT,
+                location_id         INTEGER REFERENCES storage_locations(id) ON DELETE SET NULL,
+                condition_note      TEXT,
+                status              TEXT NOT NULL DEFAULT 'verfuegbar'
+                                        CHECK (status IN ('verfuegbar','reserviert','ausgegeben','defekt','wartung','in_reparatur','verloren','aussortiert')),
+                purchase_date       TEXT,
+                purchase_price      REAL,
+                image               TEXT,
+                description         TEXT,
+                accessories         TEXT,
+                is_bulk             INTEGER NOT NULL DEFAULT 0,
+                quantity            INTEGER NOT NULL DEFAULT 1,
+                barcode             TEXT,
+                notes               TEXT,
+                current_order_id    INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+                created_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_maintenance_date TEXT,
+                next_maintenance_date TEXT
+            )");
+            $pdo->exec("INSERT INTO devices_new (id, inventory_number, name, category_id, manufacturer, model, serial_number,
+                    location_id, condition_note, status, purchase_date, purchase_price, image, description, accessories,
+                    is_bulk, quantity, barcode, notes, current_order_id, created_at, updated_at,
+                    last_maintenance_date, next_maintenance_date)
+                SELECT id, inventory_number, name, category_id, manufacturer, model, serial_number,
+                    location_id, condition_note, status, purchase_date, purchase_price, image, description, accessories,
+                    is_bulk, quantity, barcode, notes, current_order_id, created_at, updated_at,
+                    last_maintenance_date, next_maintenance_date
+                FROM devices");
+            $pdo->exec("DROP TABLE devices");
+            $pdo->exec("ALTER TABLE devices_new RENAME TO devices");
+            $pdo->exec("CREATE INDEX idx_dev_status ON devices(status)");
+            $pdo->exec("CREATE TRIGGER trg_devices_updated_at AFTER UPDATE ON devices
+                        BEGIN
+                            UPDATE devices SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                        END");
+
+            // -- Benachrichtigungen (z.B. für den Melder, wenn ein Defekt behoben wurde) -----
+            $pdo->exec("CREATE TABLE notifications (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                title       TEXT NOT NULL,
+                message     TEXT NOT NULL,
+                url         TEXT,
+                read_at     TEXT,
+                created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $pdo->exec("CREATE INDEX idx_notifications_user ON notifications(user_id, read_at)");
+        },
     ];
 
     $current = (int)$pdo->query('PRAGMA user_version')->fetchColumn();

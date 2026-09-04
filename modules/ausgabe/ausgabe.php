@@ -144,9 +144,12 @@ require_once __DIR__ . '/../../includes/header.php';
     <input type="hidden" name="form_action" value="scan_confirm">
     <div class="field">
         <label>Gerät scannen / Inventarnummer eingeben</label>
-        <input type="text" name="code" placeholder="RSH-0042" data-autofocus data-scan-target>
+        <input type="text" id="scan-code" name="code" placeholder="RSH-0042" data-autofocus data-scan-target>
     </div>
-    <button type="submit" class="btn btn-primary btn-sm">Bestätigen</button>
+    <div class="btn-row">
+        <button type="submit" class="btn btn-primary btn-sm">Bestätigen</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-camera-scan-for="scan-code">📷 Kamera</button>
+    </div>
 </form>
 <?php endif; ?>
 

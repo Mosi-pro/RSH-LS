@@ -68,6 +68,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <?php endif; ?>
         <?php if (has_permission('defekte.report')): ?>
             <a class="btn btn-danger" href="<?= url('modules/defekte/melden.php?device_id=' . (int)$device['id']) ?>">DEFEKT MELDEN</a>
+            <a class="btn" href="<?= url('modules/defekte/wartung_melden.php?device_id=' . (int)$device['id']) ?>">WARTUNG MELDEN</a>
         <?php endif; ?>
         <a class="btn btn-ghost" href="<?= url('modules/lager/geraet.php?id=' . (int)$device['id']) ?>">Vollständige Details</a>
     </div>

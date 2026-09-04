@@ -28,11 +28,16 @@ Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
 14. Defekte & Wartung (Defekt melden, Bearbeitungsstatus, Wartungsfälligkeiten)
 15. Auswertungen (Auslastung, meistgenutzte Geräte, häufigste Defekte, Aufträge/Monat, Inventurabweichungen)
 16. PDF-Export (Auftragszettel/Packliste) & Excel-Export (Lager, Aufträge, Historie)
-17. Benachrichtigungen (live berechnete Warnungen: überfällige Rückgaben, unvollständige
-    Rückgaben, fällige Wartungen, dringende Defekte – keine eigene Tabelle nötig)
+17. Benachrichtigungen (live berechnete Dashboard-Warnungen; zusätzlich persistente,
+    pro Mitarbeiter zustellbare Benachrichtigungen z.B. bei behobenem Defekt)
+18. Kamera-QR-Scan (jsQR) an jedem Scan-Feld – Handy-/Tablet-/Laptop-Kamera statt
+    ausschließlich externem USB-/BT-Scanner
+19. Werkstatt-Bereich (eigene Oberfläche, nur Technikleitung + Werkstatt-Account):
+    Gerät per Scan in die Reparatur aufnehmen, erneutes Scannen checkt aus, Lösung
+    eintragen – der Melder des Defekts wird automatisch benachrichtigt
 
-Noch nicht enthalten: Barcode-*Erzeugung* (Scanner-*Eingabe* per Tastatur-Emulation wird
-bereits unterstützt), E-Mail-/Telegram-Benachrichtigungen, Kundenportal, Mehrsprachigkeit.
+Noch nicht enthalten: Barcode-*Erzeugung* für Nicht-Geräte-Objekte, E-Mail-/Telegram-
+Zustellung von Benachrichtigungen (aktuell nur In-App), Kundenportal, Mehrsprachigkeit.
 
 ## Setup
 
@@ -41,7 +46,7 @@ bereits unterstützt), E-Mail-/Telegram-Benachrichtigungen, Kundenportal, Mehrsp
    da `modules/`, `terminal/` und `api/` ebenfalls direkt aufgerufen werden).
 3. `data/` und `uploads/` beschreibbar machen (Verzeichnisrechte 755/775).
 4. Fertig. Beim allerersten Aufruf legt die Anwendung `data/rsh-ls.sqlite` automatisch
-   an – inklusive Schema und Beispiel-Mitarbeitern (`198`, `203`, `245`, `999`).
+   an – inklusive Schema und Beispiel-Mitarbeitern (`198`, `203`, `245`, `999`, `355`).
 
 Optional per Umgebungsvariable (Hosting-Panel) oder `includes/config.local.php`
 (nicht versioniert, siehe `.gitignore`) anpassbar:
@@ -103,13 +108,28 @@ der nächsthöheren Versionsnummer ergänzt; bestehende Einträge nie nachträgl
 | Mitarbeiter              | eigene Buchungen + Defekte melden |
 | Veranstaltungsleitung   | Veranstaltungen + Aufträge + Defekte melden |
 | Lager-Terminal            | Ausgabe / Rückgabe + Defekte melden |
+| Werkstatt                 | Eigene Werkstatt-Oberfläche (Reparatur-Check-in/-out) |
 | Gast                      | nur freigegebene Informationen  |
 
 **Gerätebearbeitung (`lager.edit`) ist bewusst nur der Technikleitung und der
 Lagerleitung vorbehalten** – alle anderen Rollen sehen das Lager nur lesend.
 Defekte *melden* darf breit jede Rolle mit Lagerzugriff; Defekte *bearbeiten/
 beheben* sowie Inventur und Auswertungen bleiben ebenfalls Technikleitung +
-Lagerleitung vorbehalten.
+Lagerleitung vorbehalten. Der Werkstatt-Bereich selbst (`werkstatt.access`)
+ist – wie gewünscht – ausschließlich Technikleitung und dem Werkstatt-Account
+zugänglich, unabhängig von den übrigen Lagerrechten.
+
+## Werkstatt
+
+Beispiel-Account `355` (Rolle „Werkstatt“, Mitarbeiter-ID über die
+Mitarbeiterverwaltung änderbar). Eigene Oberfläche unter „Werkstatt“ im Menü:
+1. Gerät scannen/eingeben → wird in die Reparatur aufgenommen (Status
+   „In Reparatur“), ein offener Defekt zum Gerät wechselt auf „In Bearbeitung“.
+2. Dasselbe Gerät erneut scannen → Auscheck-Seite: Lösung eintragen, Status
+   nach der Reparatur festlegen (verfügbar / weiterhin defekt / verloren /
+   aussortiert).
+3. Beim Auschecken wird der ursprüngliche Melder des Defekts automatisch über
+   die Glocke oben rechts benachrichtigt (Fehlerbeschreibung + Lösungstext).
 
 ## QR-Codes
 
@@ -124,3 +144,7 @@ weiter nötig.
 Eingabefelder mit `data-scan-target` (z.B. Mitarbeiter-ID- und Auftragsnummer-Felder am
 Terminal) lösen bei einem Enter-Zeichen automatisch das umgebende Formular aus – das
 deckt die typische Tastatur-Emulation von USB-/Bluetooth-Scannern bereits ab.
+
+Zusätzlich gibt es an jedem Scan-Feld einen „📷 Kamera“-Button (`data-camera-scan-for`),
+der über die Gerätekamera (Handy/Tablet/Laptop) per `jsQR` direkt einen QR-Code
+ausliest, ohne externen Scanner – genutzt in Ausgabe, Rückgabe, Inventur und Werkstatt.

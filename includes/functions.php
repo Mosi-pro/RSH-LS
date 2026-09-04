@@ -27,11 +27,20 @@ function full_url(string $path): string
     return $scheme . '://' . $host . url($path);
 }
 
-/** Ziel nach dem Login: Lager-Terminal-Rolle kommt immer direkt aufs Terminal. */
+/** Ziel nach dem Login: Kiosk-Rollen kommen immer direkt auf ihre eigene Oberfläche. */
 function home_path(): string
 {
     $user = current_user();
-    return ($user && $user['role'] === 'lager_terminal') ? 'terminal/index.php' : 'public/dashboard.php';
+    if (!$user) {
+        return 'public/dashboard.php';
+    }
+    if ($user['role'] === 'lager_terminal') {
+        return 'terminal/index.php';
+    }
+    if ($user['role'] === 'werkstatt') {
+        return 'modules/werkstatt/index.php';
+    }
+    return 'public/dashboard.php';
 }
 
 function redirect(string $path): void
@@ -201,6 +210,7 @@ function device_status_label(string $status): string
         'ausgegeben'  => 'Ausgegeben',
         'defekt'      => 'Defekt',
         'wartung'     => 'Wartung',
+        'in_reparatur' => 'In Reparatur (Werkstatt)',
         'verloren'    => 'Verloren',
         'aussortiert' => 'Aussortiert',
     ];
@@ -243,6 +253,7 @@ function role_label(string $role): string
         'mitarbeiter'            => 'Mitarbeiter',
         'veranstaltungsleitung'  => 'Veranstaltungsleitung',
         'lager_terminal'         => 'Lager-Terminal',
+        'werkstatt'              => 'Werkstatt',
         'gast'                   => 'Gast',
     ];
     return $labels[$role] ?? $role;
@@ -253,7 +264,8 @@ function status_class(string $status): string
 {
     $map = [
         'verfuegbar' => 'ok', 'ausgegeben' => 'info', 'reserviert' => 'warn',
-        'defekt' => 'danger', 'wartung' => 'warn', 'verloren' => 'danger', 'aussortiert' => 'muted',
+        'defekt' => 'danger', 'wartung' => 'warn', 'in_reparatur' => 'warn',
+        'verloren' => 'danger', 'aussortiert' => 'muted',
         'entwurf' => 'muted', 'geplant' => 'info', 'vorbereitung' => 'warn',
         'bereit_zur_ausgabe' => 'info', 'im_einsatz' => 'ok', 'rueckgabe_ausstehend' => 'warn',
         'abgeschlossen' => 'ok', 'storniert' => 'danger',
@@ -265,4 +277,18 @@ function status_class(string $status): string
 function input(string $key, $default = ''): string
 {
     return trim((string)($_POST[$key] ?? $_GET[$key] ?? $default));
+}
+
+/** Benachrichtigung für einen Mitarbeiter anlegen (z.B. Melder bei behobenem Defekt). */
+function create_notification(int $userId, string $title, string $message, string $url = ''): void
+{
+    db()->prepare('INSERT INTO notifications (user_id, title, message, url) VALUES (?, ?, ?, ?)')
+        ->execute([$userId, $title, $message, $url ?: null]);
+}
+
+function count_unread_notifications(int $userId): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read_at IS NULL');
+    $stmt->execute([$userId]);
+    return (int)$stmt->fetchColumn();
 }

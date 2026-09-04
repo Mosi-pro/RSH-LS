@@ -22,5 +22,6 @@ $isTerminal  = isset($_GET['terminal']) || strpos($currentPath, '/terminal/') !=
     </main>
 <?php endif; ?>
 <script src="<?= url('assets/js/app.js') ?>"></script>
+<?php if ($user): ?><script src="<?= url('assets/js/camera-scan.js') ?>"></script><?php endif; ?>
 </body>
 </html>

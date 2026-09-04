@@ -305,3 +305,33 @@ body.terminal-mode { background: var(--bg); }
 .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .empty-state { text-align: center; padding: 50px 20px; color: var(--text-faint); }
 .empty-state .es-icon { font-size: 2.2rem; margin-bottom: 10px; }
+
+/* ---------- Kamera-Scan-Overlay ---------- */
+.camera-scan-overlay {
+    position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.85);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.camera-scan-box {
+    position: relative; width: 100%; max-width: 420px; background: var(--bg-elevated);
+    border-radius: var(--radius-lg); overflow: hidden; padding: 16px; text-align: center;
+}
+.camera-scan-video { width: 100%; border-radius: var(--radius); background: #000; aspect-ratio: 4/3; object-fit: cover; }
+.camera-scan-frame {
+    position: absolute; top: 50px; left: 16px; right: 16px; bottom: 70px;
+    border: 3px solid var(--accent); border-radius: var(--radius); pointer-events: none;
+    box-shadow: 0 0 0 999px rgba(0,0,0,.25) inset;
+}
+.camera-scan-msg { color: var(--danger); font-size: .82rem; margin-top: 10px; min-height: 1.2em; }
+.camera-scan-close { margin-top: 12px; }
+
+/* ---------- Benachrichtigungen ---------- */
+.notif-bell { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; color: var(--text-dim); }
+.notif-bell:hover { background: var(--bg-hover); color: var(--text); }
+.notif-badge {
+    position: absolute; top: 2px; right: 2px; min-width: 15px; height: 15px; padding: 0 3px;
+    background: var(--danger); color: #fff; border-radius: 999px; font-size: .62rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+}
+.notif-item { display: block; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 8px; }
+.notif-item.unread { border-color: var(--accent); background: var(--info-bg); }
+.notif-item .n-time { font-size: .74rem; color: var(--text-faint); }

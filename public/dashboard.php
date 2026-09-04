@@ -3,8 +3,8 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 require_login();
 
 $user = current_user();
-if ($user['role'] === 'lager_terminal') {
-    redirect('terminal/index.php');
+if (in_array($user['role'], ['lager_terminal', 'werkstatt'], true)) {
+    redirect(home_path());
 }
 
 $pdo = db();
