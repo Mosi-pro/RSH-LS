@@ -40,6 +40,8 @@ Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
     Einscannen
 21. Werkstattauftrag als professionelles PDF mit eingebettetem QR-Code (verweist auf
     die digitale Detailseite) – druckbar, Lösungsfeld zum Ausfüllen von Hand
+22. Schnellausgabe: Gerät direkt vom Dashboard aus scannen und ausbuchen, ohne vorher
+    manuell einen Auftrag anzulegen (siehe „Schnellausgabe" unten)
 
 Noch nicht enthalten: Barcode-*Erzeugung* für Nicht-Geräte-Objekte, E-Mail-/Telegram-
 Zustellung von Benachrichtigungen (aktuell nur In-App), Kundenportal, Mehrsprachigkeit.
@@ -123,6 +125,21 @@ beheben* sowie Inventur und Auswertungen bleiben ebenfalls Technikleitung +
 Lagerleitung vorbehalten. Der Werkstatt-Bereich selbst (`werkstatt.access`)
 ist – wie gewünscht – ausschließlich Technikleitung und dem Werkstatt-Account
 zugänglich, unabhängig von den übrigen Lagerrechten.
+
+## Schnellausgabe
+
+Über die Karte „Schnellausgabe” auf dem Dashboard (oder `modules/ausgabe/schnell.php`)
+lässt sich ein Gerät direkt scannen und ausbuchen, ohne vorher manuell einen Auftrag
+anzulegen. Technisch ändert sich am Grundprinzip **„Alles, was das Lager verlässt,
+gehört zu einem Auftrag”** nichts: Beim ersten Scan wird im Hintergrund automatisch
+ein ganz normaler, schlanker Auftrag angelegt (Nummer wie gewohnt `JAHR-NNN`, Titel
+„Schnellausgabe …” bzw. der optional eingegebene Zweck) – dieselben Tabellen, dieselbe
+Rückgabe, dieselbe Historie wie bei jedem manuell angelegten Auftrag. Dafür war **keine
+Datenbank-/Schema-Änderung nötig**, Inventarnummern und bereits gedruckte QR-Etiketten
+bleiben unverändert gültig. Weitere Geräte lassen sich vor dem Abschluss dazuscannen
+(auch Mengenartikel), „Abbrechen” hebt alle Reservierungen wieder auf und löscht den
+Auftrag rückstandsfrei, „Weiter zur Ausgabe” führt in den normalen, bereits bekannten
+Ausgabe-Ablauf (Bestätigen per Scan, Abschluss mit Mitarbeiter-ID).
 
 ## Werkstatt
 

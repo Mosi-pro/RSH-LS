@@ -42,6 +42,22 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 <h1><?= e($greeting) ?>, <?= e($user['name']) ?></h1>
 
+<?php if (has_permission('ausgabe_rueckgabe.edit')): ?>
+<div class="card card-flat">
+    <h3 class="mt-0">Schnellausgabe</h3>
+    <p class="small muted">Gerät direkt ausbuchen, ohne vorher einen Auftrag anzulegen.</p>
+    <form method="post" action="<?= url('modules/ausgabe/schnell.php') ?>">
+        <?= csrf_field() ?>
+        <input type="hidden" name="form_action" value="scan">
+        <div class="btn-row">
+            <input type="text" id="dash-scan-code" name="code" placeholder="Inventarnummer, z.B. RSH-0042" data-scan-target style="flex:1;min-width:200px;">
+            <button type="submit" class="btn btn-primary btn-sm">Ausbuchen</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-camera-scan-for="dash-scan-code">📷 Kamera</button>
+        </div>
+    </form>
+</div>
+<?php endif; ?>
+
 <?php if ($warnings): ?>
 <div class="card">
     <h3 class="mt-0">⚠ Warnungen (<?= count($warnings) ?>)</h3>
@@ -109,6 +125,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if (has_permission('auftraege.edit')): ?><a class="btn" href="<?= url('modules/auftraege/auftrag.php?id=new') ?>">Neuer Auftrag</a><?php endif; ?>
     <?php if (has_permission('veranstaltungen.view')): ?><a class="btn" href="<?= url('modules/veranstaltungen/index.php') ?>">Veranstaltungen</a><?php endif; ?>
     <?php if (has_permission('ausgabe_rueckgabe.edit')): ?><a class="btn" href="<?= url('terminal/index.php') ?>">Ausgabe / Rückgabe</a><?php endif; ?>
+    <?php if (has_permission('ausgabe_rueckgabe.edit')): ?><a class="btn" href="<?= url('modules/ausgabe/schnell.php') ?>">Schnellausgabe</a><?php endif; ?>
     <?php if (has_permission('inventur.view')): ?><a class="btn" href="<?= url('modules/inventur/index.php') ?>">Inventur</a><?php endif; ?>
     <?php if (has_permission('defekte.report')): ?><a class="btn" href="<?= url('modules/defekte/index.php') ?>">Defekte & Wartung</a><?php endif; ?>
     <?php if (has_permission('reports.view')): ?><a class="btn" href="<?= url('modules/reports/index.php') ?>">Auswertungen</a><?php endif; ?>
