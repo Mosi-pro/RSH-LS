@@ -112,6 +112,21 @@ function generate_order_number(): string
     return $year . '-' . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
 }
 
+/** Nächste Ausleih-ID für eine Schnellausgabe (ohne Auftrag), Format SA-JAHR-NNN. */
+function generate_quick_checkout_code(): string
+{
+    $pdo  = db();
+    $year = date('Y');
+    $stmt = $pdo->prepare("SELECT code FROM quick_checkouts WHERE code LIKE ? ORDER BY id DESC LIMIT 1");
+    $stmt->execute(['SA-' . $year . '-%']);
+    $last = $stmt->fetchColumn();
+    $next = 1;
+    if ($last && preg_match('/-(\d+)$/', $last, $m)) {
+        $next = (int)$m[1] + 1;
+    }
+    return 'SA-' . $year . '-' . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
+}
+
 /**
  * Live berechnete Warnungen fürs Dashboard (keine eigene Tabelle nötig):
  * überfällige Rückgaben, unvollständige Rückgaben, fällige Wartungen,

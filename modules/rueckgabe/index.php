@@ -2,13 +2,28 @@
 require_once __DIR__ . '/../../includes/bootstrap.php';
 require_permission('ausgabe_rueckgabe.edit');
 
+$pdo = db();
 $terminal = input('terminal') === '1';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
-    $orderNumber = preg_replace('/[^0-9\-]/', '', input('order_number'));
-    if ($orderNumber !== '') {
-        redirect('modules/rueckgabe/rueckgabe.php?order=' . urlencode($orderNumber) . ($terminal ? '&terminal=1' : ''));
+    $ref = trim(preg_replace('/[^0-9A-Za-z\-]/', '', input('order_number')));
+
+    if ($ref !== '') {
+        $orderStmt = $pdo->prepare('SELECT id FROM orders WHERE order_number = ?');
+        $orderStmt->execute([$ref]);
+
+        if ($orderStmt->fetchColumn()) {
+            redirect('modules/rueckgabe/rueckgabe.php?order=' . urlencode($ref) . ($terminal ? '&terminal=1' : ''));
+        }
+
+        $qcStmt = $pdo->prepare('SELECT id FROM quick_checkouts WHERE code = ?');
+        $qcStmt->execute([$ref]);
+        if ($qcStmt->fetchColumn()) {
+            redirect('modules/rueckgabe/schnell.php?checkout=' . urlencode($ref) . ($terminal ? '&terminal=1' : ''));
+        }
+
+        flash('error', '„' . $ref . '“ wurde weder als Auftrag noch als Ausleih-ID gefunden.');
     }
 }
 
@@ -23,8 +38,8 @@ require_once __DIR__ . '/../../includes/header.php';
 <form method="post">
     <?= csrf_field() ?>
     <input type="hidden" name="terminal" value="1">
-    <label class="small muted" style="display:block;text-align:center;margin-bottom:8px;">AUFTRAGSNUMMER</label>
-    <input type="text" name="order_number" class="terminal-input" placeholder="2026-041" data-autofocus data-scan-target autofocus required>
+    <label class="small muted" style="display:block;text-align:center;margin-bottom:8px;">AUFTRAGSNUMMER ODER AUSLEIH-ID</label>
+    <input type="text" name="order_number" class="terminal-input" placeholder="2026-041 oder SA-2026-001" data-autofocus data-scan-target autofocus required>
     <button type="submit" class="btn btn-primary btn-block btn-lg">WEITER</button>
 </form>
 <div class="btn-row" style="margin-top:20px;justify-content:center;">
@@ -36,8 +51,8 @@ require_once __DIR__ . '/../../includes/header.php';
     <form method="post">
         <?= csrf_field() ?>
         <div class="field">
-            <label>Auftragsnummer</label>
-            <input type="text" name="order_number" placeholder="2026-041" required data-autofocus>
+            <label>Auftragsnummer oder Ausleih-ID</label>
+            <input type="text" name="order_number" placeholder="2026-041 oder SA-2026-001" required data-autofocus>
         </div>
         <button type="submit" class="btn btn-primary">Weiter</button>
     </form>

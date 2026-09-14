@@ -139,15 +139,23 @@ Der „Warenkorb” lebt nur in der Session (kein Datenbank-Eintrag), weitere Ge
 sich vor dem Abschluss dazuscannen (auch Mengenartikel mit Menge), einzelne Positionen
 oder die ganze Liste lassen sich wieder entfernen. Beim Abschluss (Mitarbeiter-ID
 eingeben) werden die gescannten Einzelgeräte direkt auf „Ausgegeben” gesetzt, jede
-Position im Audit-Log protokolliert, und es entsteht ein **PDF-Ausgabebeleg** zum
-Ausdrucken/Abheften – anstelle eines Auftragsdatensatzes. Dafür war **keine Datenbank-
-/Schema-Änderung nötig**, Inventarnummern und bereits gedruckte QR-Etiketten bleiben
-unverändert gültig.
+Position im Audit-Log protokolliert, und es entsteht ein **PDF-Ausgabebeleg** mit einer
+eigenen **Ausleih-ID** (Format `SA-JAHR-NNN`) zum Ausdrucken/Abheften – anstelle eines
+Auftragsdatensatzes.
 
-Da hierbei kein Auftrag entsteht, läuft die Rückgabe auch nicht über den normalen
-Rückgabe-Ablauf (der ist auftragsbezogen) – ein so ausgegebenes Gerät wird aktuell über
-die Gerätebearbeitung (Status zurück auf „Verfügbar”, Technikleitung/Lagerleitung)
-wieder eingebucht.
+Damit sich so ausgegebene Geräte wiederfinden lassen, gibt es dafür eine eigene,
+schlanke Tabelle (`quick_checkouts` / `quick_checkout_items`, per Migration ergänzt) –
+bewusst **keine** Auftragstabelle, aber trackbar. Inventarnummern und bereits gedruckte
+QR-Etiketten bleiben davon unberührt.
+
+**Rückgabe per Ausleih-ID:** Die normale Rückgabe-Startseite („Auftragsnummer oder
+Ausleih-ID”) nimmt wahlweise eine Auftragsnummer (`2026-041`) oder eine Ausleih-ID
+(`SA-2026-001`) entgegen und leitet automatisch zum passenden Ablauf weiter – der
+bestehende, auftragsbasierte Rückgabe-Ablauf bleibt dabei vollständig unverändert
+nutzbar. Bei einer Ausleih-ID landet man auf einer eigenen, gleich aufgebauten
+Rückgabe-Seite: Gerät scannen (oder Button „Zurückgenommen”) setzt es zurück auf
+„Verfügbar”, Mengenartikel werden nur informativ gelistet (keine Einzelrücknahme,
+wie auch bei Aufträgen), Abschluss erfolgt wieder mit Mitarbeiter-ID.
 
 ## Werkstatt
 

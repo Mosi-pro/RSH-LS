@@ -147,6 +147,34 @@ function run_migrations(PDO $pdo): void
             )");
             $pdo->exec("CREATE INDEX idx_notifications_user ON notifications(user_id, read_at)");
         },
+
+        4 => function (PDO $pdo) {
+            // -- Schnellausgaben (Ausleihen ohne Auftrag) – eigenständig, kein Auftrag -----
+            $pdo->exec("CREATE TABLE quick_checkouts (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                code         TEXT NOT NULL UNIQUE,
+                employee_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                issued_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                status       TEXT NOT NULL DEFAULT 'offen'
+                                 CHECK (status IN ('offen','zurueckgegeben')),
+                created_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                returned_at  TEXT
+            )");
+            $pdo->exec("CREATE INDEX idx_qco_code ON quick_checkouts(code)");
+            $pdo->exec("CREATE INDEX idx_qco_status ON quick_checkouts(status)");
+
+            $pdo->exec("CREATE TABLE quick_checkout_items (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                quick_checkout_id  INTEGER NOT NULL REFERENCES quick_checkouts(id) ON DELETE CASCADE,
+                device_id          INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+                quantity           INTEGER NOT NULL DEFAULT 1,
+                is_bulk            INTEGER NOT NULL DEFAULT 0,
+                returned_at        TEXT,
+                returned_by        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                created_at         TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $pdo->exec("CREATE INDEX idx_qci_checkout ON quick_checkout_items(quick_checkout_id)");
+        },
     ];
 
     $current = (int)$pdo->query('PRAGMA user_version')->fetchColumn();

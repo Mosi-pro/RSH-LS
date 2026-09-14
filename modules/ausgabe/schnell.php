@@ -107,10 +107,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('modules/ausgabe/schnell.php' . $tSuffix);
         }
 
+        // Ausleihe anlegen - kein Auftrag, aber eine eigene, trackbare Ausleih-ID,
+        // damit sich die Geräte später über die Rückgabe wiederfinden lassen.
+        $code = generate_quick_checkout_code();
+        $pdo->prepare('INSERT INTO quick_checkouts (code, employee_id, issued_by, status) VALUES (?, ?, ?, "offen")')
+            ->execute([$code, $employee['id'], $user['id']]);
+        $checkoutId = (int)$pdo->lastInsertId();
+
         $pdf = new SimplePdf();
-        $pdf->setHeader('SCHNELLAUSGABE', 'ohne Auftrag');
-        $pdf->setFooter('RSH Technik · erstellt am ' . date('d.m.Y H:i'));
-        $pdf->addKeyValue('Ausgegeben an', $employee['name'] . ' (' . $employee['employee_id'] . ')', 0);
+        $pdf->setHeader('SCHNELLAUSGABE', 'Ausleih-ID ' . $code);
+        $pdf->setFooter('RSH Technik · erstellt am ' . date('d.m.Y H:i') . ' · zur Rückgabe die Ausleih-ID angeben');
+        $pdf->addKeyValue('Ausleih-ID', $code, 0);
+        $pdf->addKeyValue('Ausgegeben an', $employee['name'] . ' (' . $employee['employee_id'] . ')');
         $pdf->addKeyValue('Ausgegeben von', $user['name']);
         $pdf->addKeyValue('Datum', date('d.m.Y H:i'));
         $pdf->addRule(16);
@@ -122,14 +130,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $label = $d['is_bulk'] ? ((int)$qty) . ' × ' . $d['name'] : $d['inventory_number'] . '   ' . $d['name'];
             $pdf->addLine($label, 10, false, 6, ['checkbox' => true]);
 
+            $pdo->prepare('INSERT INTO quick_checkout_items (quick_checkout_id, device_id, quantity, is_bulk) VALUES (?, ?, ?, ?)')
+                ->execute([$checkoutId, $d['id'], (int)$qty, $d['is_bulk'] ? 1 : 0]);
+
             if (!$d['is_bulk']) {
                 $pdo->prepare('UPDATE devices SET status = "ausgegeben" WHERE id = ?')->execute([$d['id']]);
             }
-            log_activity('Schnellausgabe (ohne Auftrag)', 'device', (int)$d['id'], $d['inventory_number'] . ' ' . $d['name'] . ' an ' . $employee['name']);
+            log_activity('Schnellausgabe (ohne Auftrag)', 'device', (int)$d['id'], $d['inventory_number'] . ' ' . $d['name'] . ' an ' . $employee['name'] . ' (' . $code . ')');
         }
+        log_activity('Schnellausgabe erstellt', 'quick_checkout', $checkoutId, $code . ' – ' . count($_SESSION['schnell_cart']) . ' Positionen an ' . $employee['name']);
 
         $_SESSION['schnell_cart'] = [];
-        stream_pdf('schnellausgabe_' . date('Ymd_His') . '.pdf', $pdf);
+        stream_pdf('schnellausgabe_' . $code . '.pdf', $pdf);
     }
 }
 
