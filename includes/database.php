@@ -44,6 +44,9 @@ function db(): PDO
         } catch (Throwable $e) {
             error_log('RSH-LS DB-Verbindung fehlgeschlagen: ' . $e->getMessage());
             http_response_code(500);
+            if (APP_ENV === 'development') {
+                exit('Datenbankverbindung fehlgeschlagen: ' . $e->getMessage());
+            }
             exit('Datenbankverbindung fehlgeschlagen. Bitte später erneut versuchen.');
         }
     }
