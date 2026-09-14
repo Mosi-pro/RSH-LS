@@ -40,8 +40,9 @@ Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
     Einscannen
 21. Werkstattauftrag als professionelles PDF mit eingebettetem QR-Code (verweist auf
     die digitale Detailseite) – druckbar, Lösungsfeld zum Ausfüllen von Hand
-22. Schnellausgabe: Gerät direkt vom Dashboard aus scannen und ausbuchen, ohne vorher
-    manuell einen Auftrag anzulegen (siehe „Schnellausgabe" unten)
+22. Schnellausgabe: Gerät direkt vom Dashboard oder Lager-Terminal aus scannen und
+    ausbuchen, ohne dass ein Auftrag entsteht – stattdessen PDF-Ausgabebeleg
+    (siehe „Schnellausgabe" unten)
 
 Noch nicht enthalten: Barcode-*Erzeugung* für Nicht-Geräte-Objekte, E-Mail-/Telegram-
 Zustellung von Benachrichtigungen (aktuell nur In-App), Kundenportal, Mehrsprachigkeit.
@@ -128,18 +129,25 @@ zugänglich, unabhängig von den übrigen Lagerrechten.
 
 ## Schnellausgabe
 
-Über die Karte „Schnellausgabe” auf dem Dashboard (oder `modules/ausgabe/schnell.php`)
-lässt sich ein Gerät direkt scannen und ausbuchen, ohne vorher manuell einen Auftrag
-anzulegen. Technisch ändert sich am Grundprinzip **„Alles, was das Lager verlässt,
-gehört zu einem Auftrag”** nichts: Beim ersten Scan wird im Hintergrund automatisch
-ein ganz normaler, schlanker Auftrag angelegt (Nummer wie gewohnt `JAHR-NNN`, Titel
-„Schnellausgabe …” bzw. der optional eingegebene Zweck) – dieselben Tabellen, dieselbe
-Rückgabe, dieselbe Historie wie bei jedem manuell angelegten Auftrag. Dafür war **keine
-Datenbank-/Schema-Änderung nötig**, Inventarnummern und bereits gedruckte QR-Etiketten
-bleiben unverändert gültig. Weitere Geräte lassen sich vor dem Abschluss dazuscannen
-(auch Mengenartikel), „Abbrechen” hebt alle Reservierungen wieder auf und löscht den
-Auftrag rückstandsfrei, „Weiter zur Ausgabe” führt in den normalen, bereits bekannten
-Ausgabe-Ablauf (Bestätigen per Scan, Abschluss mit Mitarbeiter-ID).
+Erreichbar über die Karte „Schnellausgabe” auf dem Dashboard sowie als eigene Kachel
+auf dem Lager-Terminal (`modules/ausgabe/schnell.php`, dort im Terminal-Layout). Damit
+lässt sich ein Gerät direkt scannen und ausbuchen, **ohne dass dafür ein Auftrag
+angelegt wird** – bewusst als Gegenstück zum normalen, auftragsbasierten Ausgabe-Ablauf
+für spontane Einzelfälle (z.B. kurzfristiger Ersatz).
+
+Der „Warenkorb” lebt nur in der Session (kein Datenbank-Eintrag), weitere Geräte lassen
+sich vor dem Abschluss dazuscannen (auch Mengenartikel mit Menge), einzelne Positionen
+oder die ganze Liste lassen sich wieder entfernen. Beim Abschluss (Mitarbeiter-ID
+eingeben) werden die gescannten Einzelgeräte direkt auf „Ausgegeben” gesetzt, jede
+Position im Audit-Log protokolliert, und es entsteht ein **PDF-Ausgabebeleg** zum
+Ausdrucken/Abheften – anstelle eines Auftragsdatensatzes. Dafür war **keine Datenbank-
+/Schema-Änderung nötig**, Inventarnummern und bereits gedruckte QR-Etiketten bleiben
+unverändert gültig.
+
+Da hierbei kein Auftrag entsteht, läuft die Rückgabe auch nicht über den normalen
+Rückgabe-Ablauf (der ist auftragsbezogen) – ein so ausgegebenes Gerät wird aktuell über
+die Gerätebearbeitung (Status zurück auf „Verfügbar”, Technikleitung/Lagerleitung)
+wieder eingebucht.
 
 ## Werkstatt
 

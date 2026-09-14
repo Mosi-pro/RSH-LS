@@ -19,6 +19,9 @@ require_once __DIR__ . '/../includes/header.php';
     <a class="terminal-tile" href="<?= url('modules/rueckgabe/index.php?terminal=1') ?>">
         <span class="t-icon">↩</span> RÜCKGABE
     </a>
+    <a class="terminal-tile" href="<?= url('modules/ausgabe/schnell.php?terminal=1') ?>">
+        <span class="t-icon">⚡</span> SCHNELLAUSGABE
+    </a>
     <a class="terminal-tile" href="<?= url('modules/lager/index.php') ?>">
         <span class="t-icon">🔎</span> LAGER SUCHEN
     </a>
