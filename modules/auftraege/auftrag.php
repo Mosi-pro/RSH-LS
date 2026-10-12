@@ -86,26 +86,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 log_activity('Auftrag aus Anfrage erstellt', 'event_request', (int)$fromRequest['id'], '#' . $orderNumber);
             }
 
-            // Der zuständige Verantwortliche bekommt die fertige Auftrags-PDF direkt per Mail,
-            // sofern für ihn eine E-Mail-Adresse hinterlegt ist.
+            // Der zuständige Verantwortliche UND die Leitung bekommen die fertige
+            // Auftrags-PDF direkt per Mail, sofern E-Mail-Adressen hinterlegt sind.
+            $responsibleEmail = null;
             if ($responsibleUserId) {
-                $respStmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
+                $respStmt = $pdo->prepare('SELECT email FROM users WHERE id = ?');
                 $respStmt->execute([(int)$responsibleUserId]);
-                $responsibleUser = $respStmt->fetch();
-                if ($responsibleUser && !empty($responsibleUser['email'])) {
-                    $newOrderStmt = $pdo->prepare('SELECT o.*, u.name AS responsible_name FROM orders o
-                                                    LEFT JOIN users u ON u.id = o.responsible_user_id WHERE o.id = ?');
-                    $newOrderStmt->execute([$newId]);
-                    $newOrder = $newOrderStmt->fetch();
-                    $pdfBytes = build_order_pdf($newOrder)->render();
-                    $mailSubject = 'Neuer Auftrag #' . $orderNumber . ': ' . $title;
-                    $mailBody = "Für dich wurde ein neuer Auftrag angelegt:\n\n" .
-                        "Auftrag: #{$orderNumber} – {$title}\n" .
-                        "Ort: " . input('location') . "\n" .
-                        "Datum: " . format_date(input('event_date')) . "\n\n" .
-                        "Die vollständige Auftrags-PDF ist angehängt.";
+                $responsibleEmail = $respStmt->fetchColumn() ?: null;
+            }
+            $leitungEmails = get_setting_emails('notify_leitung_email');
+            $pdfRecipients = array_unique(array_filter(array_merge([$responsibleEmail], $leitungEmails)));
+
+            if ($pdfRecipients) {
+                $newOrderStmt = $pdo->prepare('SELECT o.*, u.name AS responsible_name FROM orders o
+                                                LEFT JOIN users u ON u.id = o.responsible_user_id WHERE o.id = ?');
+                $newOrderStmt->execute([$newId]);
+                $newOrder = $newOrderStmt->fetch();
+                $pdfBytes = build_order_pdf($newOrder)->render();
+                $mailSubject = 'Neuer Auftrag #' . $orderNumber . ': ' . $title;
+                $mailBody = "Es wurde ein neuer Auftrag angelegt:\n\n" .
+                    "Auftrag: #{$orderNumber} – {$title}\n" .
+                    "Ort: " . input('location') . "\n" .
+                    "Datum: " . format_date(input('event_date')) . "\n\n" .
+                    "Die vollständige Auftrags-PDF ist angehängt.";
+                foreach ($pdfRecipients as $to) {
                     send_mail_with_attachment(
-                        $responsibleUser['email'], $mailSubject, $mailBody,
+                        $to, $mailSubject, $mailBody,
                         'auftrag_' . $orderNumber . '.pdf', $pdfBytes
                     );
                 }

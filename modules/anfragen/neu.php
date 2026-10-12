@@ -137,12 +137,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $page_title = 'Veranstaltung anfragen';
 require_once __DIR__ . '/../../includes/header.php';
+
+$icLightbulb = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M8.5 14.5A5.5 5.5 0 1 1 15.5 14.5c-.7.8-1.3 1.5-1.5 2.5h-4c-.2-1-.8-1.7-1.5-2.5Z"/></svg>';
+$icSpeaker   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 9 5-4v14l-5-4H2V9h2Z"/><path d="M16 8.5a5 5 0 0 1 0 7M19 5.5a9 9 0 0 1 0 13"/></svg>';
+$icAtrium    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 21V10l8-6 8 6v11M9 21v-6h6v6M9 10h.01M15 10h.01M12 7h.01"/></svg>';
+$icEnvelope  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3V6Z"/><path d="m3 7 9 6 9-6"/></svg>';
+$icCheck     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 ?>
 <div class="request-page">
+<div class="request-glow"></div>
 
 <?php if ($sent): ?>
     <div class="request-hero">
-        <div class="request-hero-icon">✓</div>
+        <div class="request-hero-icon"><?= $icCheck ?></div>
         <h1>Danke für deine Anfrage!</h1>
         <p>Sie wurde an die Technik übermittelt und wird geprüft. Sobald sie bestätigt ist, bekommst du eine E-Mail.</p>
     </div>
@@ -152,7 +159,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <?php else: ?>
 
     <div class="request-hero">
-        <div class="request-hero-icon">✉</div>
+        <div class="request-hero-icon"><?= $icEnvelope ?></div>
         <h1>Veranstaltung anfragen</h1>
         <p>Technik für eine Veranstaltung anfragen – die Technikleitung prüft die Anfrage und meldet sich per E-Mail zurück.
             Keine Anmeldung nötig.</p>
@@ -166,7 +173,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <?= csrf_field() ?>
 
         <div class="req-section">
-            <div class="req-section-head"><span class="req-ic">①</span><h2>Wer &amp; Wann</h2></div>
+            <div class="req-section-head"><span class="req-ic">1</span><h2>Wer &amp; Wann</h2></div>
             <div class="form-grid">
                 <div class="field"><label>Dein Name *</label><input type="text" name="requester_name" required value="<?= e($values['requester_name']) ?>"></div>
                 <div class="field"><label>Deine E-Mail *</label><input type="email" name="requester_email" required value="<?= e($values['requester_email']) ?>"></div>
@@ -178,21 +185,24 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="req-section">
-            <div class="req-section-head"><span class="req-ic">②</span><h2>Benötigte Technik *</h2></div>
+            <div class="req-section-head"><span class="req-ic">2</span><h2>Benötigte Technik *</h2></div>
             <div class="tech-options">
-                <label class="tech-tile">
+                <label class="tech-tile" data-type="licht">
                     <input type="checkbox" name="needs_licht" value="1" <?= $values['needs_licht'] ? 'checked' : '' ?>>
-                    <span class="tech-tile-head"><span class="tech-tile-ic">💡</span>Licht</span>
+                    <span class="tech-tile-check"><?= $icCheck ?></span>
+                    <span class="tech-tile-head"><span class="tech-tile-ic"><?= $icLightbulb ?></span>Licht</span>
                     <textarea name="licht_details" placeholder="Was genau wird benötigt?"><?= e($values['licht_details']) ?></textarea>
                 </label>
-                <label class="tech-tile">
+                <label class="tech-tile" data-type="ton">
                     <input type="checkbox" name="needs_ton" value="1" <?= $values['needs_ton'] ? 'checked' : '' ?>>
-                    <span class="tech-tile-head"><span class="tech-tile-ic">🔊</span>Ton</span>
+                    <span class="tech-tile-check"><?= $icCheck ?></span>
+                    <span class="tech-tile-head"><span class="tech-tile-ic"><?= $icSpeaker ?></span>Ton</span>
                     <textarea name="ton_details" placeholder="Was genau wird benötigt?"><?= e($values['ton_details']) ?></textarea>
                 </label>
-                <label class="tech-tile">
+                <label class="tech-tile" data-type="atrium">
                     <input type="checkbox" name="needs_atrium" value="1" <?= $values['needs_atrium'] ? 'checked' : '' ?>>
-                    <span class="tech-tile-head"><span class="tech-tile-ic">◉</span>Atrium</span>
+                    <span class="tech-tile-check"><?= $icCheck ?></span>
+                    <span class="tech-tile-head"><span class="tech-tile-ic"><?= $icAtrium ?></span>Atrium</span>
                     <select name="atrium_mode" onclick="event.stopPropagation()">
                         <option value="">– bitte wählen –</option>
                         <option value="ton" <?= $values['atrium_mode'] === 'ton' ? 'selected' : '' ?>>Ton</option>
@@ -204,7 +214,7 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="req-section">
-            <div class="req-section-head"><span class="req-ic">③</span><h2>Sonstiges</h2></div>
+            <div class="req-section-head"><span class="req-ic">3</span><h2>Sonstiges</h2></div>
             <div class="field">
                 <label class="checkbox-row"><input type="checkbox" name="technicians_needed" value="1" id="technicians_needed" <?= $values['technicians_needed'] ? 'checked' : '' ?>> Techniker werden benötigt</label>
                 <input type="number" name="technician_count" min="1" placeholder="Anzahl Techniker" value="<?= e((string)$values['technician_count']) ?>">
