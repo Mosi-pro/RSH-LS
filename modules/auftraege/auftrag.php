@@ -42,32 +42,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($title === '') {
             flash('error', 'Bitte einen Auftragsnamen angeben.');
         } else {
+            // Falls der Auftrag aus einer offenen Anfrage erstellt wird: Anfrage serverseitig
+            // nachladen (nicht dem Client vertrauen) und als "bearbeitet" markieren.
+            $fromRequest = null;
+            $requestId = (int)input('request_id');
+            if ($requestId > 0) {
+                $reqStmt = $pdo->prepare("SELECT * FROM event_requests WHERE id = ? AND status = 'offen' AND order_id IS NULL");
+                $reqStmt->execute([$requestId]);
+                $fromRequest = $reqStmt->fetch();
+            }
+
             $orderNumber = generate_order_number();
             $stmt = $pdo->prepare(
                 'INSERT INTO orders (order_number, title, description, customer, contact_person, location,
-                    event_date, setup_date, teardown_date, responsible_user_id, status, event_id, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "entwurf", ?, ?)'
+                    event_date, setup_date, teardown_date, responsible_user_id, status, event_id, created_by,
+                    request_id, schedule_details, technician_count)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "entwurf", ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $orderNumber, $title, input('description'), input('customer'), input('contact_person'),
                 input('location'), input('event_date') ?: null, input('setup_date') ?: null,
                 input('teardown_date') ?: null, input('responsible_user_id') ?: null,
                 input('event_id') ?: null, $user['id'],
+                $fromRequest ? $fromRequest['id'] : null,
+                input('schedule_details') ?: ($fromRequest['schedule_details'] ?? null),
+                input('technician_count') !== '' ? (int)input('technician_count') : ($fromRequest['technician_count'] ?? null),
             ]);
             $newId = (int)$pdo->lastInsertId();
             log_activity('Auftrag erstellt', 'order', $newId, '#' . $orderNumber . ' ' . $title);
+
+            if ($fromRequest) {
+                $pdo->prepare("UPDATE event_requests SET status = 'bearbeitet', order_id = ? WHERE id = ?")
+                    ->execute([$newId, $fromRequest['id']]);
+                log_activity('Auftrag aus Anfrage erstellt', 'event_request', (int)$fromRequest['id'], '#' . $orderNumber);
+            }
+
             flash('success', 'Auftrag #' . $orderNumber . ' wurde angelegt.');
             redirect('modules/auftraege/auftrag.php?id=' . $newId);
         }
     } elseif ($action === 'update' && !$isNew) {
         $stmt = $pdo->prepare(
             'UPDATE orders SET title=?, description=?, customer=?, contact_person=?, location=?, event_date=?,
-                setup_date=?, teardown_date=?, responsible_user_id=?, event_id=? WHERE id=?'
+                setup_date=?, teardown_date=?, responsible_user_id=?, event_id=?, schedule_details=?, technician_count=? WHERE id=?'
         );
         $stmt->execute([
             input('title'), input('description'), input('customer'), input('contact_person'), input('location'),
             input('event_date') ?: null, input('setup_date') ?: null, input('teardown_date') ?: null,
-            input('responsible_user_id') ?: null, input('event_id') ?: null, (int)$order['id'],
+            input('responsible_user_id') ?: null, input('event_id') ?: null,
+            input('schedule_details') ?: null, input('technician_count') !== '' ? (int)input('technician_count') : null,
+            (int)$order['id'],
         ]);
         log_activity('Auftrag bearbeitet', 'order', (int)$order['id'], input('title'));
         flash('success', 'Änderungen gespeichert.');
@@ -76,9 +99,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'set_status' && !$isNew) {
         $newStatus = input('status');
         if (in_array($newStatus, $statuses, true)) {
+            $oldStatus = $order['status'];
             $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$newStatus, (int)$order['id']]);
-            log_activity('Statuswechsel', 'order', (int)$order['id'], order_status_label($order['status']) . ' → ' . order_status_label($newStatus));
+            log_activity('Statuswechsel', 'order', (int)$order['id'], order_status_label($oldStatus) . ' → ' . order_status_label($newStatus));
             flash('success', 'Status geändert auf „' . order_status_label($newStatus) . '“.');
+
+            // Kommt der Auftrag aus einer Anfrage und wird jetzt "geplant": Antragsteller + Leitung informieren.
+            if ($newStatus === 'geplant' && $oldStatus !== 'geplant' && $order['request_id']) {
+                $reqStmt = $pdo->prepare('SELECT * FROM event_requests WHERE id = ?');
+                $reqStmt->execute([(int)$order['request_id']]);
+                $origRequest = $reqStmt->fetch();
+                if ($origRequest) {
+                    $subject = 'Auftrag bestätigt: ' . $order['title'] . ' (#' . $order['order_number'] . ')';
+                    $body = "Deine Anfrage wurde bestätigt und als Auftrag #{$order['order_number']} registriert.\n\n" .
+                        "Titel: {$order['title']}\n" .
+                        "Ort: {$order['location']}\n" .
+                        "Datum: " . format_date($order['event_date']) . "\n\n" .
+                        "Bei Rückfragen wende dich an die Technikleitung.";
+                    send_mail($origRequest['requester_email'], $subject, $body);
+                    send_mail(get_setting('notify_leitung_email'), $subject, $body);
+                    log_activity('Bestätigungs-Mail verschickt', 'order', (int)$order['id'], $origRequest['requester_email']);
+                }
+            }
         }
         redirect('modules/auftraege/auftrag.php?id=' . (int)$order['id'] . '&tab=uebersicht');
 
@@ -166,19 +208,53 @@ if ($isNew) {
     $employees = $pdo->query("SELECT * FROM users WHERE active = 1 ORDER BY name")->fetchAll();
     $events = $pdo->query('SELECT * FROM events ORDER BY event_date DESC LIMIT 100')->fetchAll();
 
+    $fromRequest = null;
+    $fromRequestId = (int)input('from_request');
+    if ($fromRequestId > 0) {
+        $reqStmt = $pdo->prepare("SELECT * FROM event_requests WHERE id = ? AND status = 'offen' AND order_id IS NULL");
+        $reqStmt->execute([$fromRequestId]);
+        $fromRequest = $reqStmt->fetch();
+        if (!$fromRequest) {
+            flash('error', 'Diese Anfrage ist nicht mehr offen oder wurde bereits bearbeitet.');
+        }
+    }
+
+    $prefill = [
+        'title' => '', 'customer' => '', 'contact_person' => '', 'location' => '',
+        'event_date' => '', 'description' => '', 'schedule_details' => '', 'technician_count' => '',
+    ];
+    if ($fromRequest) {
+        $needs = [];
+        if ($fromRequest['needs_licht']) { $needs[] = 'Licht: ' . $fromRequest['licht_details']; }
+        if ($fromRequest['needs_ton']) { $needs[] = 'Ton: ' . $fromRequest['ton_details']; }
+        if ($fromRequest['needs_atrium']) { $needs[] = 'Atrium: ' . $fromRequest['atrium_mode']; }
+        $prefill['title'] = $fromRequest['location'] . ' – ' . format_date($fromRequest['event_date']);
+        $prefill['customer'] = $fromRequest['requester_name'];
+        $prefill['contact_person'] = $fromRequest['requester_name'] . ' (' . $fromRequest['requester_email'] . ')';
+        $prefill['location'] = $fromRequest['location'];
+        $prefill['event_date'] = $fromRequest['event_date'];
+        $prefill['description'] = "Aus Anfrage übernommen:\n" . implode("\n", $needs) .
+            ($fromRequest['event_date_end'] ? "\nZeitraum: " . format_date($fromRequest['event_date']) . ' – ' . format_date($fromRequest['event_date_end']) : '') .
+            ($fromRequest['event_time'] ? "\nUhrzeit: " . $fromRequest['event_time'] : '');
+        $prefill['schedule_details'] = $fromRequest['schedule_details'] ?? '';
+        $prefill['technician_count'] = $fromRequest['technician_count'] ?? '';
+    }
+
     $page_title = 'Neuer Auftrag';
     require_once __DIR__ . '/../../includes/header.php';
     ?>
     <h1>Neuer Auftrag</h1>
+    <?php if ($fromRequest): ?><p class="muted">Vorausgefüllt aus der Anfrage von <?= e($fromRequest['requester_name']) ?>.</p><?php endif; ?>
     <form method="post" class="card">
         <?= csrf_field() ?>
         <input type="hidden" name="form_action" value="create">
+        <?php if ($fromRequest): ?><input type="hidden" name="request_id" value="<?= (int)$fromRequest['id'] ?>"><?php endif; ?>
         <div class="form-grid">
-            <div class="field"><label>Auftragsname *</label><input type="text" name="title" required></div>
-            <div class="field"><label>Kunde / Veranstalter</label><input type="text" name="customer"></div>
-            <div class="field"><label>Ansprechpartner</label><input type="text" name="contact_person"></div>
-            <div class="field"><label>Veranstaltungsort</label><input type="text" name="location"></div>
-            <div class="field"><label>Veranstaltungsdatum</label><input type="date" name="event_date"></div>
+            <div class="field"><label>Auftragsname *</label><input type="text" name="title" required value="<?= e($prefill['title']) ?>"></div>
+            <div class="field"><label>Kunde / Veranstalter</label><input type="text" name="customer" value="<?= e($prefill['customer']) ?>"></div>
+            <div class="field"><label>Ansprechpartner</label><input type="text" name="contact_person" value="<?= e($prefill['contact_person']) ?>"></div>
+            <div class="field"><label>Veranstaltungsort</label><input type="text" name="location" value="<?= e($prefill['location']) ?>"></div>
+            <div class="field"><label>Veranstaltungsdatum</label><input type="date" name="event_date" value="<?= e($prefill['event_date']) ?>"></div>
             <div class="field"><label>Aufbau</label><input type="date" name="setup_date"></div>
             <div class="field"><label>Abbau</label><input type="date" name="teardown_date"></div>
             <div class="field">
@@ -199,8 +275,10 @@ if ($isNew) {
                     <?php endforeach; ?>
                 </select>
             </div>
+            <div class="field"><label>Zeitplan</label><input type="text" name="schedule_details" placeholder="z.B. 16 Uhr Aufbau, 19 Uhr Beginn" value="<?= e($prefill['schedule_details']) ?>"></div>
+            <div class="field"><label>Anzahl Techniker</label><input type="number" name="technician_count" min="0" value="<?= e((string)$prefill['technician_count']) ?>"></div>
         </div>
-        <div class="field"><label>Beschreibung</label><textarea name="description"></textarea></div>
+        <div class="field"><label>Beschreibung</label><textarea name="description"><?= e($prefill['description']) ?></textarea></div>
         <div class="btn-row">
             <button type="submit" class="btn btn-primary">Auftrag anlegen</button>
             <a href="<?= url('modules/auftraege/index.php') ?>" class="btn btn-ghost">Abbrechen</a>
@@ -244,6 +322,9 @@ require_once __DIR__ . '/../../includes/header.php';
     <h1>Auftrag #<?= e($order['order_number']) ?> – <?= e($order['title']) ?></h1>
     <span class="badge badge-<?= status_class($order['status']) ?>"><?= e(order_status_label($order['status'])) ?></span>
 </div>
+<?php if (!empty($order['request_id'])): ?>
+    <p class="muted small"><a href="<?= url('modules/anfragen/anfrage.php?id=' . (int)$order['request_id']) ?>">← Aus Anfrage erstellt</a></p>
+<?php endif; ?>
 
 <div class="tabs">
     <a class="tab <?= $tab === 'uebersicht' ? 'active' : '' ?>" href="<?= url('modules/auftraege/auftrag.php?id=' . (int)$order['id'] . '&tab=uebersicht') ?>">Übersicht</a>
@@ -303,6 +384,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+            <div class="field"><label>Zeitplan</label><input type="text" name="schedule_details" placeholder="z.B. 16 Uhr Aufbau, 19 Uhr Beginn" value="<?= e($order['schedule_details'] ?? '') ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
+            <div class="field"><label>Anzahl Techniker</label><input type="number" name="technician_count" min="0" value="<?= e((string)($order['technician_count'] ?? '')) ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
         </div>
         <div class="field"><label>Beschreibung</label><textarea name="description" <?= $canEdit ? '' : 'disabled' ?>><?= e($order['description'] ?? '') ?></textarea></div>
         <?php if ($canEdit): ?>

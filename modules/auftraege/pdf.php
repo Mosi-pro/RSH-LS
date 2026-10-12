@@ -40,6 +40,18 @@ $pdf->addKeyValue('Aufbau', format_date($order['setup_date']));
 $pdf->addKeyValue('Abbau', format_date($order['teardown_date']));
 $pdf->addKeyValue('Verantwortlich', (string)$order['responsible_name']);
 $pdf->addKeyValue('Status', order_status_label($order['status']));
+if ($order['technician_count']) {
+    $pdf->addKeyValue('Anzahl Techniker', (string)(int)$order['technician_count']);
+}
+
+if (!empty($order['schedule_details'])) {
+    $pdf->addRule(14);
+    $pdf->addLine('ZEITPLAN', 12, true, 10);
+    $pdf->addSpacer(4);
+    foreach (explode("\n", $order['schedule_details']) as $line) {
+        $pdf->addLine($line, 10, false, 3);
+    }
+}
 
 $pdf->addRule(14);
 $pdf->addLine('GEPLANTE TECHNIK  ·  ' . count($items) . ' Positionen', 12, true, 10);
@@ -65,6 +77,27 @@ if ($order['description']) {
     $pdf->addSpacer(4);
     foreach (explode("\n", $order['description']) as $line) {
         $pdf->addLine($line, 10, false, 3);
+    }
+}
+
+if (!empty($order['request_id'])) {
+    $reqStmt = $pdo->prepare('SELECT * FROM event_requests WHERE id = ?');
+    $reqStmt->execute([(int)$order['request_id']]);
+    $origRequest = $reqStmt->fetch();
+    if ($origRequest) {
+        $pdf->addRule(16);
+        $pdf->addLine('ANFRAGE-DETAILS', 12, true, 10);
+        $pdf->addSpacer(4);
+        $pdf->addKeyValue('Antragsteller', $origRequest['requester_name'] . ' (' . $origRequest['requester_email'] . ')');
+        if ($origRequest['needs_licht']) {
+            $pdf->addKeyValue('Licht', (string)$origRequest['licht_details']);
+        }
+        if ($origRequest['needs_ton']) {
+            $pdf->addKeyValue('Ton', (string)$origRequest['ton_details']);
+        }
+        if ($origRequest['needs_atrium']) {
+            $pdf->addKeyValue('Atrium', ucfirst((string)$origRequest['atrium_mode']));
+        }
     }
 }
 

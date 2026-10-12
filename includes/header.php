@@ -35,6 +35,10 @@ function nav_active(string $needle, string $currentPath): string
         </div>
         <nav class="nav-main">
             <a href="<?= url('public/dashboard.php') ?>" class="nav-item<?= nav_active('dashboard.php', $currentPath) ?>"><span class="ic">⌂</span> Dashboard</a>
+            <a href="<?= url('modules/anfragen/neu.php') ?>" class="nav-item<?= nav_active('/anfragen/neu.php', $currentPath) ?>"><span class="ic">✉</span> Veranstaltung anfragen</a>
+            <?php if (has_permission('auftraege.edit')): ?>
+            <a href="<?= url('modules/anfragen/index.php') ?>" class="nav-item<?= nav_active('/anfragen/index.php', $currentPath) ?>"><span class="ic">📥</span> Anfragen</a>
+            <?php endif; ?>
             <?php if (has_permission('lager.view')): ?>
             <a href="<?= url('modules/lager/index.php') ?>" class="nav-item<?= nav_active('/lager/', $currentPath) ?>"><span class="ic">▣</span> Lager</a>
             <?php endif; ?>

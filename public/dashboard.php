@@ -37,10 +37,30 @@ $greeting = $hour < 11 ? 'Guten Morgen' : ($hour < 18 ? 'Guten Tag' : 'Guten Abe
 $canSeeWarnings = has_permission('lager.edit') || has_permission('auftraege.edit');
 $warnings = $canSeeWarnings ? get_warnings() : [];
 
+$openRequests = [];
+if (has_permission('auftraege.edit')) {
+    $openRequests = $pdo->query("SELECT * FROM event_requests WHERE status = 'offen' ORDER BY created_at DESC LIMIT 8")->fetchAll();
+}
+
 $page_title = 'Dashboard';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <h1><?= e($greeting) ?>, <?= e($user['name']) ?></h1>
+
+<?php if ($openRequests): ?>
+<div class="card">
+    <h3 class="mt-0">📥 Neue Anfragen (<?= count($openRequests) ?>)</h3>
+    <ul class="timeline">
+        <?php foreach ($openRequests as $r): ?>
+            <li>
+                <span class="t-time"><?= format_date($r['event_date']) ?></span>
+                <span class="t-body"><a href="<?= url('modules/anfragen/anfrage.php?id=' . (int)$r['id']) ?>"><?= e($r['location']) ?> – <?= e($r['requester_name']) ?></a></span>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+    <a href="<?= url('modules/anfragen/index.php') ?>" class="btn btn-ghost btn-sm">Alle Anfragen →</a>
+</div>
+<?php endif; ?>
 
 <?php if (has_permission('ausgabe_rueckgabe.edit')): ?>
 <div class="card card-flat">
@@ -123,6 +143,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="btn-row">
     <?php if (has_permission('lager.view')): ?><a class="btn" href="<?= url('modules/lager/index.php') ?>">Lager</a><?php endif; ?>
     <?php if (has_permission('auftraege.edit')): ?><a class="btn" href="<?= url('modules/auftraege/auftrag.php?id=new') ?>">Neuer Auftrag</a><?php endif; ?>
+    <?php if (has_permission('auftraege.edit')): ?><a class="btn" href="<?= url('modules/anfragen/index.php') ?>">Anfragen</a><?php endif; ?>
     <?php if (has_permission('veranstaltungen.view')): ?><a class="btn" href="<?= url('modules/veranstaltungen/index.php') ?>">Veranstaltungen</a><?php endif; ?>
     <?php if (has_permission('ausgabe_rueckgabe.edit')): ?><a class="btn" href="<?= url('terminal/index.php') ?>">Ausgabe / Rückgabe</a><?php endif; ?>
     <?php if (has_permission('ausgabe_rueckgabe.edit')): ?><a class="btn" href="<?= url('modules/ausgabe/schnell.php') ?>">Schnellausgabe</a><?php endif; ?>

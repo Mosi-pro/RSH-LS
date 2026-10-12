@@ -307,3 +307,20 @@ function count_unread_notifications(int $userId): int
     $stmt->execute([$userId]);
     return (int)$stmt->fetchColumn();
 }
+
+/** Generische Einstellung lesen (z.B. Benachrichtigungs-E-Mail-Adressen), leerer String falls nicht gesetzt. */
+function get_setting(string $key, string $default = ''): string
+{
+    $stmt = db()->prepare('SELECT value FROM app_settings WHERE key = ?');
+    $stmt->execute([$key]);
+    $value = $stmt->fetchColumn();
+    return $value !== false && $value !== null ? $value : $default;
+}
+
+function set_setting(string $key, string $value): void
+{
+    db()->prepare(
+        'INSERT INTO app_settings (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+    )->execute([$key, $value]);
+}

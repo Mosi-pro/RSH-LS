@@ -242,6 +242,9 @@ legend { padding: 0 8px; font-size: .8rem; color: var(--text-dim); text-transfor
     text-align: center; font-size: 1.4rem; letter-spacing: .08em; padding: 14px; margin-bottom: 18px;
 }
 .login-card label { display: block; font-size: .78rem; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+.login-alt { margin-top: 20px; font-size: .85rem; }
+.login-alt a { color: var(--text-dim); }
+.login-alt a:hover { color: var(--accent); }
 
 /* ---------- Terminal (Lager-Tablet) ---------- */
 body.terminal-mode { background: var(--bg); }

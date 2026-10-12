@@ -175,6 +175,45 @@ function run_migrations(PDO $pdo): void
             )");
             $pdo->exec("CREATE INDEX idx_qci_checkout ON quick_checkout_items(quick_checkout_id)");
         },
+
+        5 => function (PDO $pdo) {
+            // -- Veranstaltungs-Anfragen (Formular vor der eigentlichen Auftragserstellung) -----
+            $pdo->exec("CREATE TABLE event_requests (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                requester_name      TEXT NOT NULL,
+                requester_email     TEXT NOT NULL,
+                event_date          TEXT,
+                event_date_end      TEXT,
+                event_time          TEXT,
+                location            TEXT,
+                needs_licht         INTEGER NOT NULL DEFAULT 0,
+                licht_details       TEXT,
+                needs_ton           INTEGER NOT NULL DEFAULT 0,
+                ton_details         TEXT,
+                needs_atrium        INTEGER NOT NULL DEFAULT 0,
+                atrium_mode         TEXT CHECK (atrium_mode IN ('ton','beamer','beide') OR atrium_mode IS NULL),
+                technicians_needed  INTEGER NOT NULL DEFAULT 0,
+                technician_count    INTEGER,
+                schedule_details    TEXT,
+                status              TEXT NOT NULL DEFAULT 'offen'
+                                        CHECK (status IN ('offen','bearbeitet','abgelehnt')),
+                submitted_by        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                order_id            INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+                created_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $pdo->exec("CREATE INDEX idx_event_requests_status ON event_requests(status)");
+
+            // -- Generischer Einstellungs-Speicher (z.B. Benachrichtigungs-E-Mail-Adressen) -----
+            $pdo->exec("CREATE TABLE app_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            )");
+
+            // -- Aufträge: optionaler Bezug zur Anfrage + die beiden Zusatzangaben daraus -----
+            $pdo->exec("ALTER TABLE orders ADD COLUMN request_id INTEGER REFERENCES event_requests(id) ON DELETE SET NULL");
+            $pdo->exec("ALTER TABLE orders ADD COLUMN schedule_details TEXT");
+            $pdo->exec("ALTER TABLE orders ADD COLUMN technician_count INTEGER");
+        },
     ];
 
     $current = (int)$pdo->query('PRAGMA user_version')->fetchColumn();

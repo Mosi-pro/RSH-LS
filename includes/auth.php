@@ -80,7 +80,9 @@ function is_logged_in(): bool
 function require_login(): void
 {
     if (!is_logged_in()) {
-        redirect('public/login.php');
+        $target = ltrim(substr((string)($_SERVER['REQUEST_URI'] ?? ''), strlen(BASE_URL)), '/');
+        $safe = $target !== '' && preg_match('#^[a-zA-Z0-9_\-./]+(\?[a-zA-Z0-9_\-.=&%]*)?$#', $target) && strpos($target, '//') === false;
+        redirect('public/login.php' . ($safe ? '?return=' . urlencode($target) : ''));
     }
 }
 

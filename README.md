@@ -43,9 +43,13 @@ Grundprinzip: **Alles, was das Lager verlässt, gehört zu einem Auftrag.**
 22. Schnellausgabe: Gerät direkt vom Dashboard oder Lager-Terminal aus scannen und
     ausbuchen, ohne dass ein Auftrag entsteht – stattdessen PDF-Ausgabebeleg
     (siehe „Schnellausgabe" unten)
+23. Veranstaltungsanfragen: öffentlich erreichbares Formular (Login erforderlich, jede
+    Rolle), aus dem Technikleitung/Lagerleitung/Veranstaltungsleitung bei Bedarf einen
+    Auftrag erstellt – inkl. E-Mail-Benachrichtigungen (siehe „Anfragen" unten)
 
-Noch nicht enthalten: Barcode-*Erzeugung* für Nicht-Geräte-Objekte, E-Mail-/Telegram-
-Zustellung von Benachrichtigungen (aktuell nur In-App), Kundenportal, Mehrsprachigkeit.
+Noch nicht enthalten: Barcode-*Erzeugung* für Nicht-Geräte-Objekte, Telegram-Zustellung
+von Benachrichtigungen (In-App-Benachrichtigungen + E-Mail bei Anfragen vorhanden),
+Kundenportal, Mehrsprachigkeit.
 
 ## Setup
 
@@ -125,7 +129,10 @@ Defekte *melden* darf breit jede Rolle mit Lagerzugriff; Defekte *bearbeiten/
 beheben* sowie Inventur und Auswertungen bleiben ebenfalls Technikleitung +
 Lagerleitung vorbehalten. Der Werkstatt-Bereich selbst (`werkstatt.access`)
 ist – wie gewünscht – ausschließlich Technikleitung und dem Werkstatt-Account
-zugänglich, unabhängig von den übrigen Lagerrechten.
+zugänglich, unabhängig von den übrigen Lagerrechten. Eine Veranstaltung *anfragen*
+(`modules/anfragen/neu.php`) darf jede eingeloggte Rolle inkl. Mitarbeiter und Gast;
+Anfragen *verwalten/in Aufträge umwandeln* bleibt wie Aufträge selbst Technikleitung +
+Lagerleitung + Veranstaltungsleitung vorbehalten.
 
 ## Schnellausgabe
 
@@ -156,6 +163,31 @@ nutzbar. Bei einer Ausleih-ID landet man auf einer eigenen, gleich aufgebauten
 Rückgabe-Seite: Gerät scannen (oder Button „Zurückgenommen”) setzt es zurück auf
 „Verfügbar”, Mengenartikel werden nur informativ gelistet (keine Einzelrücknahme,
 wie auch bei Aufträgen), Abschluss erfolgt wieder mit Mitarbeiter-ID.
+
+## Anfragen
+
+Über den Link „Veranstaltung anfragen” (Login-Seite und Seitenmenü, jede Rolle) lässt
+sich ein Formular ausfüllen, bevor überhaupt ein Auftrag existiert: Antragsteller
+(Name + E-Mail), Datum (optional über mehrere Tage) und Uhrzeit, Ort, benötigte Technik
+(Licht/Ton mit Freitext, Atrium mit Ton/Beamer/beides), ob und wie viele Techniker
+benötigt werden, sowie optional ein genauer Zeitplan. Ist man noch nicht eingeloggt,
+führt der Link zuerst zum normalen Mitarbeiter-Login und danach automatisch zurück
+zum Formular.
+
+Neue Anfragen erscheinen sofort im Dashboard und unter „Anfragen” (Technikleitung/
+Lagerleitung/Veranstaltungsleitung) und lösen eine E-Mail an die passenden, unter
+„Verwaltung → Einstellungen” hinterlegten Kontakte aus (Licht/Ton/Sonstiges/Leitung –
+je nachdem, was angefragt wurde; die Leitung wird immer informiert). Aus einer offenen
+Anfrage lässt sich per Klick ein Auftrag erstellen (Titel/Kunde/Ort/Datum/Zeitplan/
+Technikeranzahl werden vorausgefüllt, bleiben aber bearbeitbar); die Anfrage gilt danach
+als „bearbeitet”. Wird so ein Auftrag auf Status „Geplant” gesetzt, bekommen Antrag-
+steller und Leitung automatisch eine Bestätigungs-E-Mail. Der Auftragszettel (PDF) zeigt
+zusätzlich Zeitplan, Technikeranzahl und die ursprünglichen Anfrage-Details an, falls
+vorhanden.
+
+Der E-Mail-Versand läuft über die eingebaute PHP-`mail()`-Funktion (kein SMTP/Composer
+nötig) – das funktioniert auf den meisten Shared-Hosting-Umgebungen (z.B. STRATO) ohne
+weitere Einrichtung, hängt aber von der jeweiligen Serverkonfiguration ab.
 
 ## Werkstatt
 

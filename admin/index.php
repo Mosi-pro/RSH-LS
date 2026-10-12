@@ -42,5 +42,11 @@ require_once __DIR__ . '/../includes/header.php';
     <a class="stat-card" href="<?= url('modules/reports/index.php') ?>">
         <div class="stat-label">Auswertungen</div>
     </a>
+    <a class="stat-card" href="<?= url('modules/anfragen/index.php') ?>">
+        <div class="stat-label">Anfragen</div>
+    </a>
+    <a class="stat-card" href="<?= url('admin/einstellungen.php') ?>">
+        <div class="stat-label">Einstellungen</div>
+    </a>
 </div>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
