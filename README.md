@@ -166,28 +166,40 @@ wie auch bei Aufträgen), Abschluss erfolgt wieder mit Mitarbeiter-ID.
 
 ## Anfragen
 
-Über den Link „Veranstaltung anfragen” (Login-Seite und Seitenmenü, jede Rolle) lässt
-sich ein Formular ausfüllen, bevor überhaupt ein Auftrag existiert: Antragsteller
-(Name + E-Mail), Datum (optional über mehrere Tage) und Uhrzeit, Ort, benötigte Technik
-(Licht/Ton mit Freitext, Atrium mit Ton/Beamer/beides), ob und wie viele Techniker
-benötigt werden, sowie optional ein genauer Zeitplan. Ist man noch nicht eingeloggt,
-führt der Link zuerst zum normalen Mitarbeiter-Login und danach automatisch zurück
-zum Formular.
+Über den Link „Veranstaltung anfragen” (Login-Seite und Seitenmenü) lässt sich ein
+Formular ausfüllen, bevor überhaupt ein Auftrag existiert – **ganz ohne Anmeldung**,
+für jeden mit dem Link erreichbar: Antragsteller (Name + E-Mail), Datum (optional über
+mehrere Tage) und Uhrzeit, Ort, benötigte Technik (Licht/Ton mit Freitext, Atrium mit
+Ton/Beamer/beides), ob und wie viele Techniker benötigt werden, sowie optional ein
+genauer Zeitplan. Ist man eingeloggt, werden Name/E-Mail vorausgefüllt und man landet
+nach dem Absenden wieder im eigenen Bereich; ohne Login erscheint eine einfache
+Danke-Seite.
 
 Neue Anfragen erscheinen sofort im Dashboard und unter „Anfragen” (Technikleitung/
 Lagerleitung/Veranstaltungsleitung) und lösen eine E-Mail an die passenden, unter
 „Verwaltung → Einstellungen” hinterlegten Kontakte aus (Licht/Ton/Sonstiges/Leitung –
-je nachdem, was angefragt wurde; die Leitung wird immer informiert). Aus einer offenen
-Anfrage lässt sich per Klick ein Auftrag erstellen (Titel/Kunde/Ort/Datum/Zeitplan/
-Technikeranzahl werden vorausgefüllt, bleiben aber bearbeitbar); die Anfrage gilt danach
-als „bearbeitet”. Wird so ein Auftrag auf Status „Geplant” gesetzt, bekommen Antrag-
-steller und Leitung automatisch eine Bestätigungs-E-Mail. Der Auftragszettel (PDF) zeigt
-zusätzlich Zeitplan, Technikeranzahl und die ursprünglichen Anfrage-Details an, falls
+je nachdem, was angefragt wurde; die Leitung wird immer informiert; mehrere Adressen
+pro Bereich können durch Komma getrennt eingetragen werden). Zusätzlich kann dort pro
+Bereich (Licht/Ton/Sonstiges) ein **Bereichsleiter** aus der Mitarbeiterliste hinterlegt
+werden – dieser wird bei passenden Anfragen zusätzlich per E-Mail informiert (dafür
+muss für ihn unter „Mitarbeiter” eine E-Mail-Adresse eingetragen sein).
+
+Aus einer offenen Anfrage lässt sich per Klick ein Auftrag erstellen (Titel/Kunde/Ort/
+Datum/Zeitplan/Technikeranzahl werden vorausgefüllt, bleiben aber bearbeitbar); die
+Anfrage gilt danach als „bearbeitet”. Beim Anlegen eines Auftrags bekommt der
+eingetragene Verantwortliche automatisch die vollständige Auftrags-PDF per E-Mail
+zugeschickt (sofern für ihn eine E-Mail-Adresse hinterlegt ist). Wird der Auftrag auf
+Status „Geplant” gesetzt, bekommen Antragsteller und Leitung zusätzlich eine
+Bestätigungs-E-Mail. Der Auftragszettel (PDF) zeigt außerdem Zeitplan, Technikeranzahl,
+eine frei editierbare Technik-Ansprechperson (Vorschlag: der Verantwortliche), die
+eingesetzten Personen (z.B. Schüler) und die ursprünglichen Anfrage-Details an, falls
 vorhanden.
 
 Der E-Mail-Versand läuft über die eingebaute PHP-`mail()`-Funktion (kein SMTP/Composer
 nötig) – das funktioniert auf den meisten Shared-Hosting-Umgebungen (z.B. STRATO) ohne
-weitere Einrichtung, hängt aber von der jeweiligen Serverkonfiguration ab.
+weitere Einrichtung, hängt aber von der jeweiligen Serverkonfiguration ab. Unter
+„Verwaltung → Einstellungen” lässt sich jederzeit eine Test-E-Mail verschicken, um das
+zu prüfen.
 
 ## Werkstatt
 

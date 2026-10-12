@@ -53,20 +53,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $orderNumber = generate_order_number();
+            $responsibleUserId = input('responsible_user_id') ?: null;
+            $technicalContact = input('technical_contact');
+            if ($technicalContact === '' && $responsibleUserId) {
+                $respStmt = $pdo->prepare('SELECT name FROM users WHERE id = ?');
+                $respStmt->execute([(int)$responsibleUserId]);
+                $technicalContact = (string)$respStmt->fetchColumn();
+            }
             $stmt = $pdo->prepare(
                 'INSERT INTO orders (order_number, title, description, customer, contact_person, location,
                     event_date, setup_date, teardown_date, responsible_user_id, status, event_id, created_by,
-                    request_id, schedule_details, technician_count)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "entwurf", ?, ?, ?, ?, ?)'
+                    request_id, schedule_details, technician_count, technical_contact, assigned_students)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "entwurf", ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $orderNumber, $title, input('description'), input('customer'), input('contact_person'),
                 input('location'), input('event_date') ?: null, input('setup_date') ?: null,
-                input('teardown_date') ?: null, input('responsible_user_id') ?: null,
+                input('teardown_date') ?: null, $responsibleUserId,
                 input('event_id') ?: null, $user['id'],
                 $fromRequest ? $fromRequest['id'] : null,
                 input('schedule_details') ?: ($fromRequest['schedule_details'] ?? null),
                 input('technician_count') !== '' ? (int)input('technician_count') : ($fromRequest['technician_count'] ?? null),
+                $technicalContact ?: null,
+                input('assigned_students') ?: null,
             ]);
             $newId = (int)$pdo->lastInsertId();
             log_activity('Auftrag erstellt', 'order', $newId, '#' . $orderNumber . ' ' . $title);
@@ -77,19 +86,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 log_activity('Auftrag aus Anfrage erstellt', 'event_request', (int)$fromRequest['id'], '#' . $orderNumber);
             }
 
+            // Der zuständige Verantwortliche bekommt die fertige Auftrags-PDF direkt per Mail,
+            // sofern für ihn eine E-Mail-Adresse hinterlegt ist.
+            if ($responsibleUserId) {
+                $respStmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
+                $respStmt->execute([(int)$responsibleUserId]);
+                $responsibleUser = $respStmt->fetch();
+                if ($responsibleUser && !empty($responsibleUser['email'])) {
+                    $newOrderStmt = $pdo->prepare('SELECT o.*, u.name AS responsible_name FROM orders o
+                                                    LEFT JOIN users u ON u.id = o.responsible_user_id WHERE o.id = ?');
+                    $newOrderStmt->execute([$newId]);
+                    $newOrder = $newOrderStmt->fetch();
+                    $pdfBytes = build_order_pdf($newOrder)->render();
+                    $mailSubject = 'Neuer Auftrag #' . $orderNumber . ': ' . $title;
+                    $mailBody = "Für dich wurde ein neuer Auftrag angelegt:\n\n" .
+                        "Auftrag: #{$orderNumber} – {$title}\n" .
+                        "Ort: " . input('location') . "\n" .
+                        "Datum: " . format_date(input('event_date')) . "\n\n" .
+                        "Die vollständige Auftrags-PDF ist angehängt.";
+                    send_mail_with_attachment(
+                        $responsibleUser['email'], $mailSubject, $mailBody,
+                        'auftrag_' . $orderNumber . '.pdf', $pdfBytes
+                    );
+                }
+            }
+
             flash('success', 'Auftrag #' . $orderNumber . ' wurde angelegt.');
             redirect('modules/auftraege/auftrag.php?id=' . $newId);
         }
     } elseif ($action === 'update' && !$isNew) {
         $stmt = $pdo->prepare(
             'UPDATE orders SET title=?, description=?, customer=?, contact_person=?, location=?, event_date=?,
-                setup_date=?, teardown_date=?, responsible_user_id=?, event_id=?, schedule_details=?, technician_count=? WHERE id=?'
+                setup_date=?, teardown_date=?, responsible_user_id=?, event_id=?, schedule_details=?, technician_count=?,
+                technical_contact=?, assigned_students=? WHERE id=?'
         );
         $stmt->execute([
             input('title'), input('description'), input('customer'), input('contact_person'), input('location'),
             input('event_date') ?: null, input('setup_date') ?: null, input('teardown_date') ?: null,
             input('responsible_user_id') ?: null, input('event_id') ?: null,
             input('schedule_details') ?: null, input('technician_count') !== '' ? (int)input('technician_count') : null,
+            input('technical_contact') ?: null, input('assigned_students') ?: null,
             (int)$order['id'],
         ]);
         log_activity('Auftrag bearbeitet', 'order', (int)$order['id'], input('title'));
@@ -117,7 +153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         "Datum: " . format_date($order['event_date']) . "\n\n" .
                         "Bei Rückfragen wende dich an die Technikleitung.";
                     send_mail($origRequest['requester_email'], $subject, $body);
-                    send_mail(get_setting('notify_leitung_email'), $subject, $body);
+                    foreach (get_setting_emails('notify_leitung_email') as $to) {
+                        send_mail($to, $subject, $body);
+                    }
                     log_activity('Bestätigungs-Mail verschickt', 'order', (int)$order['id'], $origRequest['requester_email']);
                 }
             }
@@ -275,9 +313,11 @@ if ($isNew) {
                     <?php endforeach; ?>
                 </select>
             </div>
+            <div class="field"><label>Ansprechperson Technik</label><input type="text" name="technical_contact" placeholder="Standard: Verantwortlicher" value=""></div>
             <div class="field"><label>Zeitplan</label><input type="text" name="schedule_details" placeholder="z.B. 16 Uhr Aufbau, 19 Uhr Beginn" value="<?= e($prefill['schedule_details']) ?>"></div>
             <div class="field"><label>Anzahl Techniker</label><input type="number" name="technician_count" min="0" value="<?= e((string)$prefill['technician_count']) ?>"></div>
         </div>
+        <div class="field"><label>Eingesetzte Personen (z.B. Schüler)</label><textarea name="assigned_students" placeholder="Wer wird als Techniker eingesetzt? (einer pro Zeile)"></textarea></div>
         <div class="field"><label>Beschreibung</label><textarea name="description"><?= e($prefill['description']) ?></textarea></div>
         <div class="btn-row">
             <button type="submit" class="btn btn-primary">Auftrag anlegen</button>
@@ -384,9 +424,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+            <div class="field"><label>Ansprechperson Technik</label><input type="text" name="technical_contact" placeholder="Standard: Verantwortlicher" value="<?= e($order['technical_contact'] ?? '') ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
             <div class="field"><label>Zeitplan</label><input type="text" name="schedule_details" placeholder="z.B. 16 Uhr Aufbau, 19 Uhr Beginn" value="<?= e($order['schedule_details'] ?? '') ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
             <div class="field"><label>Anzahl Techniker</label><input type="number" name="technician_count" min="0" value="<?= e((string)($order['technician_count'] ?? '')) ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
         </div>
+        <div class="field"><label>Eingesetzte Personen (z.B. Schüler)</label><textarea name="assigned_students" placeholder="Wer wird als Techniker eingesetzt? (einer pro Zeile)" <?= $canEdit ? '' : 'disabled' ?>><?= e($order['assigned_students'] ?? '') ?></textarea></div>
         <div class="field"><label>Beschreibung</label><textarea name="description" <?= $canEdit ? '' : 'disabled' ?>><?= e($order['description'] ?? '') ?></textarea></div>
         <?php if ($canEdit): ?>
         <div class="btn-row">

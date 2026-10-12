@@ -1,18 +1,19 @@
 <?php
 /**
- * RSH-LS – Veranstaltung anfragen: Formular für Mitarbeiter (jede Rolle), um
- * eine Technik-Anfrage für eine Veranstaltung einzureichen. Daraus wird noch
- * KEIN Auftrag - das übernimmt die Technikleitung/Lagerleitung/Veranstaltungs-
- * leitung bewusst erst nach Prüfung über das Anfragen-Modul.
+ * RSH-LS – Veranstaltung anfragen: öffentlich erreichbares Formular (keine
+ * Anmeldung nötig), um eine Technik-Anfrage für eine Veranstaltung
+ * einzureichen. Daraus wird noch KEIN Auftrag - das übernimmt die
+ * Technikleitung/Lagerleitung/Veranstaltungsleitung bewusst erst nach
+ * Prüfung über das Anfragen-Modul.
  */
 require_once __DIR__ . '/../../includes/bootstrap.php';
-require_login();
 
 $pdo = db();
 $user = current_user();
+$sent = isset($_GET['sent']);
 
 $values = [
-    'requester_name' => $user['name'],
+    'requester_name' => $user['name'] ?? '',
     'requester_email' => '',
     'event_date' => '',
     'event_date_end' => '',
@@ -79,25 +80,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $values['needs_ton'] ? 1 : 0, $values['needs_ton'] ? $values['ton_details'] : null,
             $values['needs_atrium'] ? 1 : 0, $values['needs_atrium'] ? $values['atrium_mode'] : null,
             $values['technicians_needed'] ? 1 : 0, $values['technicians_needed'] ? (int)$values['technician_count'] : null,
-            $values['schedule_details'] ?: null, $user['id'],
+            $values['schedule_details'] ?: null, $user['id'] ?? null,
         ]);
         $requestId = (int)$pdo->lastInsertId();
         log_activity('Veranstaltungsanfrage eingereicht', 'event_request', $requestId, $values['location'] . ' am ' . $values['event_date']);
 
         // -- Benachrichtigungs-E-Mails je nach benötigter Technik -----------------
-        // Zuordnung: Licht -> Licht-Kontakt; Ton (direkt oder über Atrium) -> Ton-Kontakt;
-        // Atrium (jeder Modus) -> Sonstiges-Kontakt (Raumbuchung); immer zusätzlich die Leitung.
+        // Zuordnung: Licht -> Licht-Kontakte/-Bereichsleiter; Ton (direkt oder über
+        // Atrium) -> Ton-Kontakte/-Bereichsleiter; Atrium (jeder Modus) -> Sonstiges-
+        // Kontakte/-Bereichsleiter; immer zusätzlich die Leitung.
         $recipients = [];
         if ($values['needs_licht']) {
-            $recipients[] = get_setting('notify_licht_email');
+            $recipients = array_merge($recipients, get_setting_emails('notify_licht_email'));
+            if ($bl = get_bereichsleiter('licht')) {
+                $recipients[] = $bl['email'];
+            }
         }
         if ($values['needs_ton'] || ($values['needs_atrium'] && in_array($values['atrium_mode'], ['ton', 'beide'], true))) {
-            $recipients[] = get_setting('notify_ton_email');
+            $recipients = array_merge($recipients, get_setting_emails('notify_ton_email'));
+            if ($bl = get_bereichsleiter('ton')) {
+                $recipients[] = $bl['email'];
+            }
         }
         if ($values['needs_atrium']) {
-            $recipients[] = get_setting('notify_sonstiges_email');
+            $recipients = array_merge($recipients, get_setting_emails('notify_sonstiges_email'));
+            if ($bl = get_bereichsleiter('sonstiges')) {
+                $recipients[] = $bl['email'];
+            }
         }
-        $recipients[] = get_setting('notify_leitung_email');
+        $recipients = array_merge($recipients, get_setting_emails('notify_leitung_email'));
 
         $subject = 'Neue Veranstaltungsanfrage: ' . $values['location'] . ' am ' . format_date($values['event_date']);
         $body = "Neue Anfrage über das Lagersystem:\n\n" .
@@ -116,65 +127,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             send_mail($to, $subject, $body);
         }
 
-        flash('success', 'Deine Anfrage wurde übermittelt. Du erhältst eine E-Mail, sobald sie bestätigt ist.');
-        redirect(home_path());
+        if ($user) {
+            flash('success', 'Deine Anfrage wurde übermittelt. Du erhältst eine E-Mail, sobald sie bestätigt ist.');
+            redirect(home_path());
+        }
+        redirect('modules/anfragen/neu.php?sent=1');
     }
 }
 
 $page_title = 'Veranstaltung anfragen';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
-<div class="section-head"><h1>Veranstaltung anfragen</h1></div>
-<p class="muted">Technik für eine Veranstaltung anfragen – die Technikleitung prüft die Anfrage und meldet sich per E-Mail zurück.</p>
+<div class="request-page">
 
-<?php foreach ($errors as $err): ?>
-    <div class="flash flash-error"><?= e($err) ?></div>
-<?php endforeach; ?>
+<?php if ($sent): ?>
+    <div class="request-hero">
+        <div class="request-hero-icon">✓</div>
+        <h1>Danke für deine Anfrage!</h1>
+        <p>Sie wurde an die Technik übermittelt und wird geprüft. Sobald sie bestätigt ist, bekommst du eine E-Mail.</p>
+    </div>
+    <div class="btn-row" style="justify-content:center">
+        <a href="<?= url('modules/anfragen/neu.php') ?>" class="btn btn-primary">Weitere Anfrage stellen</a>
+    </div>
+<?php else: ?>
 
-<form method="post" class="card">
-    <?= csrf_field() ?>
-    <div class="form-grid">
-        <div class="field"><label>Name (Antragsteller) *</label><input type="text" name="requester_name" required value="<?= e($values['requester_name']) ?>"></div>
-        <div class="field"><label>E-Mail *</label><input type="email" name="requester_email" required value="<?= e($values['requester_email']) ?>"></div>
-        <div class="field"><label>Datum *</label><input type="date" name="event_date" required value="<?= e($values['event_date']) ?>"></div>
-        <div class="field"><label>Datum bis (bei mehreren Tagen)</label><input type="date" name="event_date_end" value="<?= e($values['event_date_end']) ?>"></div>
-        <div class="field"><label>Uhrzeit</label><input type="text" name="event_time" placeholder="z.B. 18:00 – 22:00" value="<?= e($values['event_time']) ?>"></div>
-        <div class="field"><label>Ort *</label><input type="text" name="location" required placeholder="z.B. Atrium, Aula …" value="<?= e($values['location']) ?>"></div>
-    </div>
-
-    <h3>Benötigte Technik *</h3>
-    <div class="field">
-        <label class="checkbox-row"><input type="checkbox" name="needs_licht" value="1" id="needs_licht" <?= $values['needs_licht'] ? 'checked' : '' ?>> Licht</label>
-        <textarea name="licht_details" placeholder="Was genau wird benötigt?"><?= e($values['licht_details']) ?></textarea>
-    </div>
-    <div class="field">
-        <label class="checkbox-row"><input type="checkbox" name="needs_ton" value="1" id="needs_ton" <?= $values['needs_ton'] ? 'checked' : '' ?>> Ton</label>
-        <textarea name="ton_details" placeholder="Was genau wird benötigt?"><?= e($values['ton_details']) ?></textarea>
-    </div>
-    <div class="field">
-        <label class="checkbox-row"><input type="checkbox" name="needs_atrium" value="1" id="needs_atrium" <?= $values['needs_atrium'] ? 'checked' : '' ?>> Atrium</label>
-        <select name="atrium_mode">
-            <option value="">– bitte wählen –</option>
-            <option value="ton" <?= $values['atrium_mode'] === 'ton' ? 'selected' : '' ?>>Ton</option>
-            <option value="beamer" <?= $values['atrium_mode'] === 'beamer' ? 'selected' : '' ?>>Beamer</option>
-            <option value="beide" <?= $values['atrium_mode'] === 'beide' ? 'selected' : '' ?>>Beides</option>
-        </select>
+    <div class="request-hero">
+        <div class="request-hero-icon">✉</div>
+        <h1>Veranstaltung anfragen</h1>
+        <p>Technik für eine Veranstaltung anfragen – die Technikleitung prüft die Anfrage und meldet sich per E-Mail zurück.
+            Keine Anmeldung nötig.</p>
     </div>
 
-    <h3>Sonstiges</h3>
-    <div class="field">
-        <label class="checkbox-row"><input type="checkbox" name="technicians_needed" value="1" id="technicians_needed" <?= $values['technicians_needed'] ? 'checked' : '' ?>> Techniker werden benötigt</label>
-        <input type="number" name="technician_count" min="1" placeholder="Anzahl Techniker" value="<?= e((string)$values['technician_count']) ?>">
-    </div>
-    <div class="field">
-        <label>Genauer Zeitplan (optional)</label>
-        <textarea name="schedule_details" placeholder="z.B. 16:00 Aufbau, 18:00 Einlass, 19:00 Beginn, 22:00 Ende, 23:00 Abbau"><?= e($values['schedule_details']) ?></textarea>
-    </div>
+    <?php foreach ($errors as $err): ?>
+        <div class="flash flash-error"><?= e($err) ?></div>
+    <?php endforeach; ?>
 
-    <div class="btn-row">
-        <button type="submit" class="btn btn-primary">Anfrage absenden</button>
-        <a href="<?= url(home_path()) ?>" class="btn btn-ghost">Abbrechen</a>
-    </div>
-</form>
+    <form method="post" class="request-form">
+        <?= csrf_field() ?>
+
+        <div class="req-section">
+            <div class="req-section-head"><span class="req-ic">①</span><h2>Wer &amp; Wann</h2></div>
+            <div class="form-grid">
+                <div class="field"><label>Dein Name *</label><input type="text" name="requester_name" required value="<?= e($values['requester_name']) ?>"></div>
+                <div class="field"><label>Deine E-Mail *</label><input type="email" name="requester_email" required value="<?= e($values['requester_email']) ?>"></div>
+                <div class="field"><label>Datum *</label><input type="date" name="event_date" required value="<?= e($values['event_date']) ?>"></div>
+                <div class="field"><label>Datum bis <span class="hint">(bei mehreren Tagen)</span></label><input type="date" name="event_date_end" value="<?= e($values['event_date_end']) ?>"></div>
+                <div class="field"><label>Uhrzeit</label><input type="text" name="event_time" placeholder="z.B. 18:00 – 22:00" value="<?= e($values['event_time']) ?>"></div>
+                <div class="field"><label>Ort *</label><input type="text" name="location" required placeholder="z.B. Atrium, Aula …" value="<?= e($values['location']) ?>"></div>
+            </div>
+        </div>
+
+        <div class="req-section">
+            <div class="req-section-head"><span class="req-ic">②</span><h2>Benötigte Technik *</h2></div>
+            <div class="tech-options">
+                <label class="tech-tile">
+                    <input type="checkbox" name="needs_licht" value="1" <?= $values['needs_licht'] ? 'checked' : '' ?>>
+                    <span class="tech-tile-head"><span class="tech-tile-ic">💡</span>Licht</span>
+                    <textarea name="licht_details" placeholder="Was genau wird benötigt?"><?= e($values['licht_details']) ?></textarea>
+                </label>
+                <label class="tech-tile">
+                    <input type="checkbox" name="needs_ton" value="1" <?= $values['needs_ton'] ? 'checked' : '' ?>>
+                    <span class="tech-tile-head"><span class="tech-tile-ic">🔊</span>Ton</span>
+                    <textarea name="ton_details" placeholder="Was genau wird benötigt?"><?= e($values['ton_details']) ?></textarea>
+                </label>
+                <label class="tech-tile">
+                    <input type="checkbox" name="needs_atrium" value="1" <?= $values['needs_atrium'] ? 'checked' : '' ?>>
+                    <span class="tech-tile-head"><span class="tech-tile-ic">◉</span>Atrium</span>
+                    <select name="atrium_mode" onclick="event.stopPropagation()">
+                        <option value="">– bitte wählen –</option>
+                        <option value="ton" <?= $values['atrium_mode'] === 'ton' ? 'selected' : '' ?>>Ton</option>
+                        <option value="beamer" <?= $values['atrium_mode'] === 'beamer' ? 'selected' : '' ?>>Beamer</option>
+                        <option value="beide" <?= $values['atrium_mode'] === 'beide' ? 'selected' : '' ?>>Beides</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+
+        <div class="req-section">
+            <div class="req-section-head"><span class="req-ic">③</span><h2>Sonstiges</h2></div>
+            <div class="field">
+                <label class="checkbox-row"><input type="checkbox" name="technicians_needed" value="1" id="technicians_needed" <?= $values['technicians_needed'] ? 'checked' : '' ?>> Techniker werden benötigt</label>
+                <input type="number" name="technician_count" min="1" placeholder="Anzahl Techniker" value="<?= e((string)$values['technician_count']) ?>">
+            </div>
+            <div class="field">
+                <label>Genauer Zeitplan <span class="hint">(optional)</span></label>
+                <textarea name="schedule_details" placeholder="z.B. 16:00 Aufbau, 18:00 Einlass, 19:00 Beginn, 22:00 Ende, 23:00 Abbau"><?= e($values['schedule_details']) ?></textarea>
+            </div>
+        </div>
+
+        <div class="btn-row request-submit-row">
+            <button type="submit" class="btn btn-primary btn-lg">Anfrage absenden</button>
+            <?php if ($user): ?><a href="<?= url(home_path()) ?>" class="btn btn-ghost">Abbrechen</a><?php endif; ?>
+        </div>
+    </form>
+    <script>
+        document.querySelectorAll('.tech-tile').forEach(function (tile) {
+            var box = tile.querySelector('input[type="checkbox"]');
+            var sync = function () { tile.classList.toggle('is-checked', box.checked); };
+            box.addEventListener('change', sync);
+            sync();
+        });
+    </script>
+
+<?php endif; ?>
+</div>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

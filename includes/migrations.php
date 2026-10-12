@@ -214,6 +214,17 @@ function run_migrations(PDO $pdo): void
             $pdo->exec("ALTER TABLE orders ADD COLUMN schedule_details TEXT");
             $pdo->exec("ALTER TABLE orders ADD COLUMN technician_count INTEGER");
         },
+
+        6 => function (PDO $pdo) {
+            // -- Mitarbeiter: E-Mail-Adresse (fuer Bereichsleiter-Benachrichtigungen und
+            // automatischen PDF-Versand bei Auftragserstellung) -----
+            $pdo->exec("ALTER TABLE users ADD COLUMN email TEXT");
+
+            // -- Aufträge: Technik-Ansprechperson (Default: Verantwortlicher, aber änderbar)
+            // und Freitext, welche Personen/Schüler als Techniker eingesetzt werden -----
+            $pdo->exec("ALTER TABLE orders ADD COLUMN technical_contact TEXT");
+            $pdo->exec("ALTER TABLE orders ADD COLUMN assigned_students TEXT");
+        },
     ];
 
     $current = (int)$pdo->query('PRAGMA user_version')->fetchColumn();

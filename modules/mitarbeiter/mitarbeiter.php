@@ -34,9 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name  = input('name');
     $role  = input('role', 'mitarbeiter');
     $active = input('active') === '1' ? 1 : 0;
+    $email = trim(input('email'));
 
     if ($empId === '' || $name === '' || !in_array($role, $roles, true)) {
         flash('error', 'Bitte Mitarbeiter-ID, Name und Rolle angeben.');
+    } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        flash('error', 'Ungültige E-Mail-Adresse.');
     } else {
         if ($isNew) {
             $check = $pdo->prepare('SELECT COUNT(*) FROM users WHERE employee_id = ?');
@@ -44,16 +47,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ((int)$check->fetchColumn() > 0) {
                 flash('error', 'Mitarbeiter-ID ' . $empId . ' ist bereits vergeben.');
             } else {
-                $stmt = $pdo->prepare('INSERT INTO users (employee_id, name, role, active, notes) VALUES (?, ?, ?, ?, ?)');
-                $stmt->execute([$empId, $name, $role, $active, input('notes')]);
+                $stmt = $pdo->prepare('INSERT INTO users (employee_id, name, role, active, notes, email) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt->execute([$empId, $name, $role, $active, input('notes'), $email ?: null]);
                 $newId = (int)$pdo->lastInsertId();
                 log_activity('Mitarbeiter angelegt', 'user', $newId, $name . ' (' . $empId . ')');
                 flash('success', 'Mitarbeiter angelegt.');
                 redirect('modules/mitarbeiter/mitarbeiter.php?id=' . $newId);
             }
         } else {
-            $stmt = $pdo->prepare('UPDATE users SET employee_id=?, name=?, role=?, active=?, notes=? WHERE id=?');
-            $stmt->execute([$empId, $name, $role, $active, input('notes'), (int)$employee['id']]);
+            $stmt = $pdo->prepare('UPDATE users SET employee_id=?, name=?, role=?, active=?, notes=?, email=? WHERE id=?');
+            $stmt->execute([$empId, $name, $role, $active, input('notes'), $email ?: null, (int)$employee['id']]);
             log_activity('Mitarbeiter bearbeitet', 'user', (int)$employee['id'], $name);
             flash('success', 'Änderungen gespeichert.');
             redirect('modules/mitarbeiter/mitarbeiter.php?id=' . (int)$employee['id']);
@@ -90,6 +93,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="form-grid">
         <div class="field"><label>Mitarbeiter-ID *</label><input type="text" name="employee_id" inputmode="numeric" required value="<?= e($employee['employee_id'] ?? '') ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
         <div class="field"><label>Name *</label><input type="text" name="name" required value="<?= e($employee['name'] ?? '') ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
+        <div class="field"><label>E-Mail</label><input type="email" name="email" placeholder="für Benachrichtigungen (z.B. Bereichsleiter)" value="<?= e($employee['email'] ?? '') ?>" <?= $canEdit ? '' : 'disabled' ?>></div>
         <div class="field">
             <label>Rolle / Berechtigungsgruppe</label>
             <select name="role" <?= $canEdit ? '' : 'disabled' ?>>

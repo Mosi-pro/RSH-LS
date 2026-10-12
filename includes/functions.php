@@ -324,3 +324,31 @@ function set_setting(string $key, string $value): void
          ON CONFLICT(key) DO UPDATE SET value = excluded.value'
     )->execute([$key, $value]);
 }
+
+/** Eine Einstellung mit komma-/semikolongetrennten E-Mail-Adressen als Liste gültiger Adressen lesen. */
+function get_setting_emails(string $key): array
+{
+    $raw = get_setting($key);
+    $parts = preg_split('/[,;]+/', $raw) ?: [];
+    $emails = [];
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if ($part !== '' && filter_var($part, FILTER_VALIDATE_EMAIL)) {
+            $emails[] = $part;
+        }
+    }
+    return array_values(array_unique($emails));
+}
+
+/** Den als Bereichsleiter für einen Bereich (licht/ton/sonstiges) hinterlegten Nutzer holen, oder null. */
+function get_bereichsleiter(string $bereich): ?array
+{
+    $userId = (int)get_setting('bereichsleiter_' . $bereich . '_user_id');
+    if ($userId <= 0) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM users WHERE id = ? AND active = 1');
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+    return $user ?: null;
+}
