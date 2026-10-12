@@ -23,6 +23,13 @@ function build_order_pdf(array $order): SimplePdf
     $itemsStmt->execute([(int)$order['id']]);
     $items = $itemsStmt->fetchAll();
 
+    $origRequest = null;
+    if (!empty($order['request_id'])) {
+        $reqStmt = $pdo->prepare('SELECT * FROM event_requests WHERE id = ?');
+        $reqStmt->execute([(int)$order['request_id']]);
+        $origRequest = $reqStmt->fetch() ?: null;
+    }
+
     $pdf = new SimplePdf();
     $pdf->setHeader('AUFTRAG #' . $order['order_number'], $order['title']);
     $pdf->setFooter('RSH Technik · erstellt am ' . date('d.m.Y H:i'));
@@ -30,7 +37,11 @@ function build_order_pdf(array $order): SimplePdf
     $pdf->addKeyValue('Kunde / Veranstalter', (string)$order['customer'], 0);
     $pdf->addKeyValue('Ansprechpartner', (string)$order['contact_person']);
     $pdf->addKeyValue('Technik-Kontakt', (string)($order['technical_contact'] ?: ''));
-    $pdf->addKeyValue('Veranstaltungsort', (string)$order['location']);
+    if ($origRequest && !empty($origRequest['event_name'])) {
+        $pdf->addKeyValue('Veranstaltungsname', (string)$origRequest['event_name']);
+    } else {
+        $pdf->addKeyValue('Veranstaltungsort', (string)$order['location']);
+    }
     $pdf->addKeyValue('Veranstaltungsdatum', format_date($order['event_date']));
     $pdf->addKeyValue('Aufbau', format_date($order['setup_date']));
     $pdf->addKeyValue('Abbau', format_date($order['teardown_date']));
@@ -87,24 +98,19 @@ function build_order_pdf(array $order): SimplePdf
         }
     }
 
-    if (!empty($order['request_id'])) {
-        $reqStmt = $pdo->prepare('SELECT * FROM event_requests WHERE id = ?');
-        $reqStmt->execute([(int)$order['request_id']]);
-        $origRequest = $reqStmt->fetch();
-        if ($origRequest) {
-            $pdf->addRule(16);
-            $pdf->addLine('ANFRAGE-DETAILS', 12, true, 10);
-            $pdf->addSpacer(4);
-            $pdf->addKeyValue('Antragsteller', $origRequest['requester_name'] . ' (' . $origRequest['requester_email'] . ')');
-            if ($origRequest['needs_licht']) {
-                $pdf->addKeyValue('Licht', (string)$origRequest['licht_details']);
-            }
-            if ($origRequest['needs_ton']) {
-                $pdf->addKeyValue('Ton', (string)$origRequest['ton_details']);
-            }
-            if ($origRequest['needs_atrium']) {
-                $pdf->addKeyValue('Atrium', ucfirst((string)$origRequest['atrium_mode']));
-            }
+    if ($origRequest) {
+        $pdf->addRule(16);
+        $pdf->addLine('ANFRAGE-DETAILS', 12, true, 10);
+        $pdf->addSpacer(4);
+        $pdf->addKeyValue('Antragsteller', $origRequest['requester_name'] . ' (' . $origRequest['requester_email'] . ')');
+        if ($origRequest['needs_licht']) {
+            $pdf->addKeyValue('Licht', (string)$origRequest['licht_details']);
+        }
+        if ($origRequest['needs_ton']) {
+            $pdf->addKeyValue('Ton', (string)$origRequest['ton_details']);
+        }
+        if ($origRequest['needs_atrium']) {
+            $pdf->addKeyValue('Atrium', ucfirst((string)$origRequest['atrium_mode']));
         }
     }
 

@@ -225,6 +225,11 @@ function run_migrations(PDO $pdo): void
             $pdo->exec("ALTER TABLE orders ADD COLUMN technical_contact TEXT");
             $pdo->exec("ALTER TABLE orders ADD COLUMN assigned_students TEXT");
         },
+
+        7 => function (PDO $pdo) {
+            // -- Veranstaltungs-Anfragen: Name der Veranstaltung (Pflichtfeld im Formular) -----
+            $pdo->exec("ALTER TABLE event_requests ADD COLUMN event_name TEXT");
+        },
     ];
 
     $current = (int)$pdo->query('PRAGMA user_version')->fetchColumn();

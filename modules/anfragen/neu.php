@@ -15,6 +15,7 @@ $sent = isset($_GET['sent']);
 $values = [
     'requester_name' => $user['name'] ?? '',
     'requester_email' => '',
+    'event_name' => '',
     'event_date' => '',
     'event_date_end' => '',
     'event_time' => '',
@@ -44,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($values['requester_email'] === '' || !filter_var($values['requester_email'], FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Bitte eine gültige E-Mail-Adresse angeben.';
     }
+    if ($values['event_name'] === '') {
+        $errors[] = 'Bitte einen Veranstaltungsnamen angeben.';
+    }
     if ($values['event_date'] === '') {
         $errors[] = 'Bitte ein Datum angeben.';
     }
@@ -68,13 +72,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         $stmt = $pdo->prepare(
-            'INSERT INTO event_requests (requester_name, requester_email, event_date, event_date_end, event_time,
+            'INSERT INTO event_requests (requester_name, requester_email, event_name, event_date, event_date_end, event_time,
                 location, needs_licht, licht_details, needs_ton, ton_details, needs_atrium, atrium_mode,
                 technicians_needed, technician_count, schedule_details, submitted_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
-            $values['requester_name'], $values['requester_email'], $values['event_date'],
+            $values['requester_name'], $values['requester_email'], $values['event_name'], $values['event_date'],
             $values['event_date_end'] ?: null, $values['event_time'] ?: null, $values['location'],
             $values['needs_licht'] ? 1 : 0, $values['needs_licht'] ? $values['licht_details'] : null,
             $values['needs_ton'] ? 1 : 0, $values['needs_ton'] ? $values['ton_details'] : null,
@@ -177,6 +181,7 @@ $icCheck     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
             <div class="form-grid">
                 <div class="field"><label>Dein Name *</label><input type="text" name="requester_name" required value="<?= e($values['requester_name']) ?>"></div>
                 <div class="field"><label>Deine E-Mail *</label><input type="email" name="requester_email" required value="<?= e($values['requester_email']) ?>"></div>
+                <div class="field"><label>Veranstaltungsname *</label><input type="text" name="event_name" required placeholder="z.B. Sommerfest" value="<?= e($values['event_name']) ?>"></div>
                 <div class="field"><label>Datum *</label><input type="date" name="event_date" required value="<?= e($values['event_date']) ?>"></div>
                 <div class="field"><label>Datum bis <span class="hint">(bei mehreren Tagen)</span></label><input type="date" name="event_date_end" value="<?= e($values['event_date_end']) ?>"></div>
                 <div class="field"><label>Uhrzeit</label><input type="text" name="event_time" placeholder="z.B. 18:00 – 22:00" value="<?= e($values['event_time']) ?>"></div>
